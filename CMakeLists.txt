@@ -9,7 +9,7 @@ configure_file (
 	       "${PROJECT_BINARY_DIR}/PetGLConfig.h"
 )
 
-include_directories ("${PROJECt_BINARY_DIR}")
+include_directories ("${PROJECT_BINARY_DIR}")
 
 #add the executable
 add_executable (PetGL PetGL.cpp)
