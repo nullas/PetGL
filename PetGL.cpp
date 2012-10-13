@@ -1,6 +1,7 @@
 #include <stdio.h>
-#include <configure.h>
+#include <PetGLConfig.h>
 
 int main(int argc, char *argv[])
 {
-  printf("%d.%d", 
+  printf("the version is %d.%d\n", PetGL_VERSION_MAJOR, PetGL_VERSION_MINOR);
+} 
