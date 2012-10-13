@@ -1,0 +1,3 @@
+//define version
+#define PetGL_VERSION_MAJOR @PetGL_VERSION_MAJOR@
+#define PetGL_VERSION_MINOR @PetGL_VERSION_MINOR@
