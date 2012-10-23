@@ -3,6 +3,8 @@
 
 #include <QGLViewer/qglviewer.h>
 
+#include "PetMesh.h"
+
 class Viewer : public QGLViewer {
 
   Q_OBJECT
@@ -13,7 +15,8 @@ public:
   // overload several QGLViewer virtual functions
   void draw();
   void init();
-  QWidget m_parent;
+
+  void drawMesh(PetMesh& petMesh);
 
 }; // end class Viewer
 

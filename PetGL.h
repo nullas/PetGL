@@ -1,9 +1,11 @@
 #ifndef PETGL_H
 #define PETGL_H
 
-#include <list>
+#include <vector>
 
 #include <QMainWindow>
+#include <QSignalMapper>
+
 #include <QGLViewer/qglviewer.h>
 
 #include "PetMesh.h"
@@ -20,15 +22,17 @@ class PetGL : public QMainWindow
 public:
     explicit PetGL(QWidget *parent = 0);
     ~PetGL();
-    int AddPetMesh(PetMesh petMesh);
+    int AddPetMesh(PetMesh *petMesh);
     int DeletePetMesh(int num);
-    std::list<PetMesh*> PetMeshLists;
+    std::vector<PetMesh*> PetMeshLists;
 
     
 private slots:
     void on_actionLoad_mesh_triggered();
+    void toggleDrawProperties(QWidget*);
 
 private:
+    QSignalMapper *signalMapper;
     QStreamRedirect* qout;
     Ui::MainWindow *ui;
 };
