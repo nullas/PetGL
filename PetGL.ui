@@ -30,6 +30,7 @@
      <string>File</string>
     </property>
     <addaction name="actionLoad_mesh"/>
+    <addaction name="actionLoad_curve"/>
    </widget>
    <addaction name="menuFile"/>
   </widget>
@@ -150,6 +151,11 @@
   <action name="actionLoad_mesh">
    <property name="text">
     <string>Load mesh</string>
+   </property>
+  </action>
+  <action name="actionLoad_curve">
+   <property name="text">
+    <string>Load curve</string>
    </property>
   </action>
  </widget>

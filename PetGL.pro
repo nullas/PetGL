@@ -19,14 +19,16 @@ include (packages.pri)
 SOURCES += main.cpp\
     Viewer.cpp \
     PetGL.cpp \
-    PetMesh.cpp
+    PetMesh.cpp \
+    PetCurve.cpp
 
 HEADERS  += \
     PetGLConfig.h \
     PetMesh.h \
     Viewer.h \
     PetGL.h \
-    QStreamRedirect.h
+    QStreamRedirect.h \
+    PetCurve.h
 
 FORMS    += \
     PetGL.ui

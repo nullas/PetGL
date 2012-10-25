@@ -3,6 +3,7 @@
 #include "PetGL.h"
 #include "Viewer.h"
 #include "PetMesh.h"
+#include "PetCurve.h"
 
 using namespace std;
 
@@ -34,10 +35,6 @@ void Viewer::init()
 {
     setBackgroundColor(Qt::white);
     glEnable(GL_NORMALIZE);
-    glEnable( GL_LINE_SMOOTH );
-    glEnable( GL_POLYGON_SMOOTH );
-    glHint( GL_LINE_SMOOTH_HINT, GL_NICEST );
-    glHint( GL_POLYGON_SMOOTH_HINT, GL_NICEST );
 }
 
 void Viewer::drawMesh(PetMesh& petMesh)
@@ -75,21 +72,23 @@ void Viewer::drawMesh(PetMesh& petMesh)
         }// endif (petMesh.showFaces)
         if (petMesh.showEdges)
         {
-            glDisable(GL_LIGHTING);
-            PetMesh::EdgeIter e_it;
-            PetMesh::HalfedgeHandle he_hnd;
-            glLineWidth(2.0);
-            glBegin(GL_LINES);
-            for (e_it = petMesh.edges_begin(); e_it != petMesh.edges_end(); ++e_it)
-            {
-                he_hnd = petMesh.halfedge_handle(e_it.handle(),0);
-                glColor3dv(petMesh.color(e_it).data());
-                glVertex3dv(petMesh.point(petMesh.from_vertex_handle(he_hnd)).data());
-                glVertex3dv(petMesh.point(petMesh.to_vertex_handle(he_hnd)).data());
-            }//end for
-            glEnd();
-            glEnable(GL_LIGHTING);
-
+                glDisable(GL_LIGHTING);
+                PetMesh::EdgeIter e_it;
+                PetMesh::HalfedgeHandle he_hnd;
+                glLineWidth(2.0);
+                glBegin(GL_LINES);
+                for (e_it = petMesh.edges_begin(); e_it != petMesh.edges_end(); ++e_it)
+                {
+                    if (petMesh.property(petMesh.showEdge, *e_it))
+                    {
+                        he_hnd = petMesh.halfedge_handle(e_it.handle(),0);
+                        glColor3dv(petMesh.color(e_it).data());
+                        glVertex3dv(petMesh.point(petMesh.from_vertex_handle(he_hnd)).data());
+                        glVertex3dv(petMesh.point(petMesh.to_vertex_handle(he_hnd)).data());
+                    }
+                }//end for
+                glEnd();
+                glEnable(GL_LIGHTING);
         }//endif (petMesh.showEdges)
         if (petMesh.showVertices)
         {

@@ -47,7 +47,7 @@ include_directories ("${PROJECT_BINARY_DIR}")
 
 #Qt processes
 
-set (PetGL_SOURCES main.cpp PetGL.cpp PetMesh.cpp Viewer.cpp)
+set (PetGL_SOURCES main.cpp PetGL.cpp PetMesh.cpp Viewer.cpp PetCurve.cpp)
 set (PetGL_HEADERS PetGL.h Viewer.h)
 set (PetGL_FORMS PetGL.ui)
 

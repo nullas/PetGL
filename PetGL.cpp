@@ -1,6 +1,4 @@
-#include "PetGL.h"
-#include "ui_PetGL.h"
-
+#include <fstream>
 #include <vector>
 
 #include <QString>
@@ -14,9 +12,10 @@
 
 #include <QGLViewer/qglviewer.h>
 
-#include <OpenMesh/Core/IO/MeshIO.hh>
-
 #include "PetMesh.h"
+#include "PetGL.h"
+#include "ui_PetGL.h"
+#include "PetCurve.h"
 
 
 using namespace std;
@@ -35,6 +34,9 @@ PetGL::PetGL(QWidget *parent) :
         ui->MeshLists->resizeColumnToContents(i);
 
     signalMapper = new QSignalMapper(this);
+    signalMapperContextMenu = new QSignalMapper(this);
+
+    ContextMenu = NULL;
 
     qout = new QStreamRedirect(std::cout, ui->logWindow);
 
@@ -60,6 +62,7 @@ int PetGL::AddPetMesh(PetMesh *petMesh)
     cout << "Add mesh: " << petMesh->name.toStdString() << endl;
     cout << "Vertices: " << petMesh->n_vertices() << endl;
     cout << "Faces: " << petMesh->n_faces() << endl;
+    cout << "Edges: " << petMesh->n_edges() << endl;
 
     QTreeWidgetItem *item = new QTreeWidgetItem(ui->MeshLists, QStringList(petMesh->name));
     QVariant V;
@@ -75,16 +78,27 @@ int PetGL::AddPetMesh(PetMesh *petMesh)
     {
         chkBox = new QCheckBox();
         ui->MeshLists->setItemWidget(item, i, chkBox);
-        chkBox->setCheckable(true);
-        if (i <= 2)
+        if ((i == 2 || i == 5) && petMesh->isCurve)
+            chkBox->setCheckable(false);
+        else
+            chkBox->setCheckable(true);
+
+        if (i < 6 && *petMesh->drawProperties[i - 1])
             chkBox->setChecked(true);
         else
             chkBox->setChecked(false);
+
         connect(chkBox, SIGNAL(toggled(bool)), signalMapper, SLOT(map()));
         signalMapper->setMapping(chkBox, (QWidget*) item);
     }
 
     connect(signalMapper, SIGNAL(mapped(QWidget*)), this, SLOT(toggleDrawProperties(QWidget*)));
+
+    ui->MeshLists->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(ui->MeshLists, SIGNAL(customContextMenuRequested(const QPoint&)),
+            signalMapperContextMenu, SLOT(map()));
+    signalMapperContextMenu->setMapping(ui->MeshLists, (QWidget *) ui->MeshLists);
+    connect(signalMapperContextMenu, SIGNAL(mapped(QWidget*)), this, SLOT(MeshListsContextMenu(QWidget*)));
 
     for (int i = 0; i < ui->MeshLists->columnCount(); ++i)
         ui->MeshLists->resizeColumnToContents(i);
@@ -129,12 +143,23 @@ void PetGL::on_actionLoad_mesh_triggered()
                                          tr("Mesh (*.ply *.obj)"));
     if (fileName.isEmpty()) return;
     PetMesh *mesh = new PetMesh();
-    if (!OpenMesh::IO::read_mesh(*mesh, fileName.toStdString())) return;
-    QFileInfo fi(fileName);
-    mesh->SetName(fi.fileName());
-    mesh->init();
+    mesh->read_mesh(fileName);
     AddPetMesh(mesh);
 }
+
+
+void PetGL::on_actionLoad_curve_triggered()
+{
+    QString filename = \
+            QFileDialog::getOpenFileName(this, \
+                                         tr("Load curve"), \
+                                         tr("curve (*.crv)"));
+    if (filename.isEmpty()) return;
+    PetCurve *mesh = new PetCurve();
+    if(!mesh->read_curve(filename)) return;
+    AddPetMesh(mesh);
+}
+
 
 void PetGL::toggleDrawProperties(QWidget* item)
 {
@@ -153,3 +178,24 @@ void PetGL::toggleDrawProperties(QWidget* item)
     }
     ui->MainViewer->updateGL();
 }
+
+
+void PetGL::MeshListsContextMenu(QWidget* item)
+{
+    QTreeWidget *chkItem = (QTreeWidget *) item;
+//    PetMesh *mesh;
+//    mesh = (PetMesh *) chkItem->data(0,Qt::UserRole).value<void *>();
+
+    if (ContextMenu)
+        delete ContextMenu;
+    ContextMenu = new QMenu(chkItem);
+    QAction *focusAct = ContextMenu->addAction("focus");
+    QAction *saveAct = ContextMenu->addAction("save");
+    QAction *deleteAct = ContextMenu->addAction("delete");
+
+    connect(focusAct, SIGNAL(triggered(bool)), signalMapperContextMenu, SLOT(map()));
+    connect(saveAct, SIGNAL(triggered(bool)), signalMapperContextMenu, SLOT(map()));
+    connect(deleteAct, SIGNAL(triggered(bool)), signalMapperContextMenu, SLOT(map()));
+    ContextMenu->exec();
+}
+

@@ -5,6 +5,7 @@
 
 #include <QMainWindow>
 #include <QSignalMapper>
+#include <QMenu>
 
 #include <QGLViewer/qglviewer.h>
 
@@ -29,12 +30,17 @@ public:
     
 private slots:
     void on_actionLoad_mesh_triggered();
-    void toggleDrawProperties(QWidget*);
+    void on_actionLoad_curve_triggered();
+    void toggleDrawProperties(QWidget *);
+    void MeshListsContextMenu(QWidget *);
 
 private:
-    QSignalMapper *signalMapper;
+    QSignalMapper *signalMapper, *signalMapperContextMenu;
     QStreamRedirect* qout;
     Ui::MainWindow *ui;
+
+    //ugly due to ui
+    QMenu *ContextMenu;
 };
 
 #endif // PETGL_H
