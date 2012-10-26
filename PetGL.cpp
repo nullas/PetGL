@@ -34,9 +34,17 @@ PetGL::PetGL(QWidget *parent) :
         ui->MeshLists->resizeColumnToContents(i);
 
     signalMapper = new QSignalMapper(this);
-    signalMapperContextMenu = new QSignalMapper(this);
 
-    ContextMenu = NULL;
+    ui->MeshLists->setContextMenuPolicy(Qt::ActionsContextMenu);
+    QAction *focusAct = new QAction("focus", ui->MeshLists);
+    QAction *saveAct = new QAction("save", ui->MeshLists);
+    QAction *deleteAct = new QAction("delete", ui->MeshLists);
+    connect(focusAct, SIGNAL(triggered(bool)), this, SLOT(focusPet()));
+    connect(saveAct, SIGNAL(triggered(bool)), this, SLOT(savePet()));
+    connect(deleteAct, SIGNAL(triggered(bool)), this, SLOT(deletePet()));
+    ui->MeshLists->addAction(focusAct);
+    ui->MeshLists->addAction(saveAct);
+    ui->MeshLists->addAction(deleteAct);
 
     qout = new QStreamRedirect(std::cout, ui->logWindow);
 
@@ -93,12 +101,6 @@ int PetGL::AddPetMesh(PetMesh *petMesh)
     }
 
     connect(signalMapper, SIGNAL(mapped(QWidget*)), this, SLOT(toggleDrawProperties(QWidget*)));
-
-    ui->MeshLists->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(ui->MeshLists, SIGNAL(customContextMenuRequested(const QPoint&)),
-            signalMapperContextMenu, SLOT(map()));
-    signalMapperContextMenu->setMapping(ui->MeshLists, (QWidget *) ui->MeshLists);
-    connect(signalMapperContextMenu, SIGNAL(mapped(QWidget*)), this, SLOT(MeshListsContextMenu(QWidget*)));
 
     for (int i = 0; i < ui->MeshLists->columnCount(); ++i)
         ui->MeshLists->resizeColumnToContents(i);
@@ -179,23 +181,18 @@ void PetGL::toggleDrawProperties(QWidget* item)
     ui->MainViewer->updateGL();
 }
 
-
-void PetGL::MeshListsContextMenu(QWidget* item)
+void PetGL::savePet()
 {
-    QTreeWidget *chkItem = (QTreeWidget *) item;
-//    PetMesh *mesh;
-//    mesh = (PetMesh *) chkItem->data(0,Qt::UserRole).value<void *>();
 
-    if (ContextMenu)
-        delete ContextMenu;
-    ContextMenu = new QMenu(chkItem);
-    QAction *focusAct = ContextMenu->addAction("focus");
-    QAction *saveAct = ContextMenu->addAction("save");
-    QAction *deleteAct = ContextMenu->addAction("delete");
-
-    connect(focusAct, SIGNAL(triggered(bool)), signalMapperContextMenu, SLOT(map()));
-    connect(saveAct, SIGNAL(triggered(bool)), signalMapperContextMenu, SLOT(map()));
-    connect(deleteAct, SIGNAL(triggered(bool)), signalMapperContextMenu, SLOT(map()));
-    ContextMenu->exec();
 }
 
+
+void PetGL::deletePet()
+{
+
+}
+
+void PetGL::focusPet()
+{
+
+}
