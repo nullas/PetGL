@@ -13,6 +13,7 @@ class PetCurve : public PetMesh
 public:
     PetCurve();
     bool read_curve(QString File);
+    virtual bool save(QString filename);
     OpenMesh::EPropHandleT<bool> isCurveEdge;
     OpenMesh::HPropHandleT<bool> isCurveHalfEdge;
     typedef PetCurve::Face Curve;

@@ -71,3 +71,36 @@ bool PetCurve::read_curve(QString filename)
     fin.close();
     return true;
 }
+
+bool PetCurve::save(QString filename)
+{
+    QFileInfo fi;
+    fi.setFile(filename);
+    QDir qdir = fi.dir();
+
+    if (fi.suffix() != "crv") return false;
+    QString meshname;
+    meshname = qdir.absoluteFilePath(fi.baseName() + ".ply");
+    if (!PetMesh::save(meshname)) return false;
+    ofstream fout(filename.toAscii());
+    PetMesh::HalfedgeHandle h_hnd;
+    PetMesh::VertexHandle v_hnd;
+    if (!fout.is_open())
+    {
+        cout << "can't open" << filename.toStdString() << endl;
+        return false;
+    }
+    for (PetMesh::EdgeIter e_it = this->edges_begin(); e_it != this->edges_end(); ++e_it)
+    {
+        if (!this->property(isCurveEdge, *e_it))
+        {
+            h_hnd = this->halfedge_handle(*e_it, 0);
+            v_hnd = this->from_vertex_handle(h_hnd);
+            fout << v_hnd.idx() << " ";
+            v_hnd = this->to_vertex_handle(h_hnd);
+            fout << v_hnd.idx() << endl;
+        }
+    }
+    fout.close();
+    return true;
+}

@@ -110,31 +110,25 @@ int PetGL::AddPetMesh(PetMesh *petMesh)
     return 0;
 }
 
-int PetGL::DeletePetMesh(int num)
+int PetGL::DeletePetMesh(PetMesh* mesh)
 {
     vector<PetMesh*>::iterator it;
-    int found = 0;
-    PetMesh* temppointer;
     for (it = PetMeshLists.begin(); it != PetMeshLists.end(); ++ it)
     {
-        if((*it)->Identity == num)
-        {
-            found = 1;
-            temppointer = *it;
-            PetMeshLists.erase(it);
-            break;
-        }
+        if(*it == mesh) break;
     }
-    if (found)
+    if (it != PetMeshLists.end())
     {
-        std::cout << "Delete Mesh:" << temppointer->name.toStdString() << std::endl;
-        delete temppointer;
+        std::cout << "Delete Mesh:" << (*it)->name.toStdString() << std::endl;
+        delete *it;
+        this->PetMeshLists.erase(it);
+        return 0;
     }
     else
-        std::cout << "Not found by Identity:" << num << std::endl;
-
-    return found;
-
+    {
+        std::cout << "Mesh Not found."<< std::endl;
+        return 1;
+    }
 }
 
 void PetGL::on_actionLoad_mesh_triggered()
@@ -142,6 +136,7 @@ void PetGL::on_actionLoad_mesh_triggered()
     QString fileName = \
             QFileDialog::getOpenFileName(this, \
                                          tr("Load Mesh"), \
+                                         "/home/nullas/workspace/PetGL/meshes", \
                                          tr("Mesh (*.ply *.obj)"));
     if (fileName.isEmpty()) return;
     PetMesh *mesh = new PetMesh();
@@ -155,6 +150,7 @@ void PetGL::on_actionLoad_curve_triggered()
     QString filename = \
             QFileDialog::getOpenFileName(this, \
                                          tr("Load curve"), \
+                                         "/home/nullas/workspace/PetGL/meshes", \
                                          tr("curve (*.crv)"));
     if (filename.isEmpty()) return;
     PetCurve *mesh = new PetCurve();
@@ -183,16 +179,41 @@ void PetGL::toggleDrawProperties(QWidget* item)
 
 void PetGL::savePet()
 {
+    QTreeWidgetItem *item = this->ui->MeshLists->currentItem();
+    PetMesh *mesh;
+    mesh = (PetMesh *) item->data(0,Qt::UserRole).value<void *>();
+    QString filename;
 
+    filename = \
+            QFileDialog::getSaveFileName(this, \
+                                         tr("Save to"), \
+                                         "/home/nullas/workspace/PetGL/meshes",
+                                         tr("Mesh (*.obj *.ply *.crv)"));
+    if (filename.isEmpty()) return;
+    mesh->save(filename);
 }
 
 
 void PetGL::deletePet()
 {
-
+    QTreeWidgetItem *item = this->ui->MeshLists->currentItem();
+    PetMesh *mesh;
+    mesh = (PetMesh *) item->data(0,Qt::UserRole).value<void *>();
+    int index = this->ui->MeshLists->indexOfTopLevelItem(item);
+    this->ui->MeshLists->takeTopLevelItem(index);
+    delete item;
+    this->DeletePetMesh(mesh);
+    this->ui->MainViewer->updateGL();
 }
 
 void PetGL::focusPet()
 {
-
+    QTreeWidgetItem *item = this->ui->MeshLists->currentItem();
+    PetMesh *mesh;
+    mesh = (PetMesh *) item->data(0,Qt::UserRole).value<void *>();
+    this->ui->MainViewer->setSceneRadius(mesh->SceneRadius);
+    qglviewer::Vec center;
+    center.setValue(mesh->SceneCenter[0],mesh->SceneCenter[1],mesh->SceneCenter[2]);
+    this->ui->MainViewer->setSceneCenter(center);
+    this->ui->MainViewer->showEntireScene();
 }

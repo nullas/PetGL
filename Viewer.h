@@ -1,7 +1,15 @@
 #ifndef VIEWER_H
 #define VIEWER_H
 
+#include <vector>
+
 #include <QGLViewer/qglviewer.h>
+
+#include "PetGL.h"
+#include "Viewer.h"
+#include "PetMesh.h"
+#include "PetCurve.h"
+
 
 #include "PetMesh.h"
 

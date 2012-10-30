@@ -1,10 +1,4 @@
-#include <vector>
-
-#include "PetGL.h"
 #include "Viewer.h"
-#include "PetMesh.h"
-#include "PetCurve.h"
-
 using namespace std;
 
 Viewer::Viewer(QWidget* parent)
@@ -35,6 +29,7 @@ void Viewer::init()
 {
     setBackgroundColor(Qt::white);
     glEnable(GL_NORMALIZE);
+    glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
 }
 
 void Viewer::drawMesh(PetMesh& petMesh)
@@ -49,11 +44,11 @@ void Viewer::drawMesh(PetMesh& petMesh)
                 for (f_it = petMesh.faces_begin(); f_it != petMesh.faces_end(); ++f_it)
                 {
                     glBegin(GL_POLYGON);
-                    glColor3dv(petMesh.color(f_it).data());
+                    glColor3fv(petMesh.color(f_it).data());
                     for (fv_it = petMesh.fv_iter(*f_it); fv_it; ++fv_it)
                     {
-                        glNormal3dv(petMesh.normal(fv_it).data());
-                        glVertex3dv(petMesh.point(fv_it).data());
+                        glNormal3fv(petMesh.normal(fv_it).data());
+                        glVertex3fv(petMesh.point(fv_it).data());
                     }
                     glEnd();
                 }// end for
@@ -61,11 +56,11 @@ void Viewer::drawMesh(PetMesh& petMesh)
                 for (f_it = petMesh.faces_begin(); f_it != petMesh.faces_end(); ++f_it)
                 {
                     glBegin(GL_POLYGON);
-                    glNormal3dv(petMesh.normal(f_it).data());
-                    glColor4dv(petMesh.color(f_it).data());
+                    glNormal3fv(petMesh.normal(f_it).data());
+                    glColor4fv(petMesh.color(f_it).data());
                     for (fv_it = petMesh.fv_iter(*f_it); fv_it; ++fv_it)
                     {
-                        glVertex3dv(petMesh.point(fv_it).data());
+                        glVertex3fv(petMesh.point(fv_it).data());
                     }
                     glEnd();
                 }// end for
@@ -82,9 +77,9 @@ void Viewer::drawMesh(PetMesh& petMesh)
                     if (petMesh.property(petMesh.showEdge, *e_it))
                     {
                         he_hnd = petMesh.halfedge_handle(e_it.handle(),0);
-                        glColor3dv(petMesh.color(e_it).data());
-                        glVertex3dv(petMesh.point(petMesh.from_vertex_handle(he_hnd)).data());
-                        glVertex3dv(petMesh.point(petMesh.to_vertex_handle(he_hnd)).data());
+                        glColor3fv(petMesh.color(e_it).data());
+                        glVertex3fv(petMesh.point(petMesh.from_vertex_handle(he_hnd)).data());
+                        glVertex3fv(petMesh.point(petMesh.to_vertex_handle(he_hnd)).data());
                     }
                 }//end for
                 glEnd();
@@ -98,8 +93,8 @@ void Viewer::drawMesh(PetMesh& petMesh)
             glBegin(GL_POINTS);
             for (v_it = petMesh.vertices_begin(); v_it != petMesh.vertices_end(); ++v_it)
             {
-                glColor3dv(petMesh.color(v_it).data());
-                glVertex3dv(petMesh.point(v_it).data());
+                glColor3fv(petMesh.color(v_it).data());
+                glVertex3fv(petMesh.point(v_it).data());
             }//end for
             glEnd();
             glEnable(GL_LIGHTING);

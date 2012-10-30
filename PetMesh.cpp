@@ -1,6 +1,11 @@
+#include <fstream>
+
+#include <GL/glew.h>
+
 #include <QString>
 #include <QObject>
 #include <QFileInfo>
+#include <QDir>
 
 #include <OpenMesh/Core/IO/MeshIO.hh>
 
@@ -8,13 +13,9 @@
 
 using namespace std;
 
-int PetMesh::identity = 0;
-
 
 PetMesh::PetMesh(QString m_name)
 {
-    this->Identity = identity;
-    identity ++;
     if (m_name == NULL)
         this->name = QObject::tr("untitled-");
     else
@@ -53,6 +54,8 @@ void PetMesh::init(bool isCurve)
     drawProperties[3] = &showVertices;
     drawProperties[4] = &smooth;
 
+    PetMesh::Point total(0, 0, 0);
+
     PetMesh::FaceIter f_it;
     PetMesh::EdgeIter e_it;
     PetMesh::VertexIter v_it;
@@ -64,6 +67,7 @@ void PetMesh::init(bool isCurve)
         this->set_color(f_it, f_color);
         this->property(showFace, *f_it) = true;
     }
+
     for (e_it = this->edges_begin(); e_it != this->edges_end(); ++e_it)
     {
         this->set_color(e_it, e_color);
@@ -73,6 +77,18 @@ void PetMesh::init(bool isCurve)
     {
         this->set_color(v_it, v_color);
         this->property(showVertex, *v_it) = true;
+        total += this->point(v_it);
+    }
+
+    SceneCenter = total / this->n_vertices();
+
+    SceneRadius = 0;
+    double tempRadius;
+    for (v_it = this->vertices_begin(); v_it != this->vertices_end(); ++v_it)
+    {
+        tempRadius = (this->point(v_it)-SceneCenter).norm();
+        if (tempRadius > SceneRadius)
+                SceneRadius = tempRadius;
     }
 }
 
@@ -95,4 +111,9 @@ bool PetMesh::read_mesh(QString fileName)
     this->SetName(fi.fileName());
     this->init();
     return true;
+}
+
+bool PetMesh::save(QString filename)
+{
+    return OpenMesh::IO::write_mesh(*this, filename.toStdString());
 }

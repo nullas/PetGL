@@ -24,7 +24,7 @@ public:
     explicit PetGL(QWidget *parent = 0);
     ~PetGL();
     int AddPetMesh(PetMesh *petMesh);
-    int DeletePetMesh(int num);
+    int DeletePetMesh(PetMesh *);
     std::vector<PetMesh*> PetMeshLists;
 
     
