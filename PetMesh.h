@@ -3,14 +3,19 @@
 
 #include <limits.h>
 
+#include <GL/glew.h>
+
+
 #include <OpenMesh/Core/Mesh/PolyMesh_ArrayKernelT.hh>
 #include <QString>
+
+#define NUM_BUFFERS 8
 
 struct PetTraits : public OpenMesh::DefaultTraits
 {
     typedef OpenMesh::Vec3f Point;
     typedef OpenMesh::Vec3f Normal;
-    typedef OpenMesh::Vec3f Color;
+    typedef OpenMesh::Vec4f Color;
 
     VertexAttributes(OpenMesh::Attributes::Normal | OpenMesh::Attributes::Color);
     FaceAttributes(OpenMesh::Attributes::Status | OpenMesh::Attributes::Normal | OpenMesh::Attributes::Color);
@@ -28,7 +33,7 @@ public:
     PetMesh(QString m_name = NULL);
     ~PetMesh();
 
-    void init(bool isCurve = false);
+    virtual void init(bool isCurve = false);
 
     bool read_mesh(QString filename);
     virtual bool save(QString filename);
@@ -39,9 +44,9 @@ public:
     PetMesh::Scalar SceneRadius;
     PetMesh::Point SceneCenter;
 
-    OpenMesh::EPropHandleT<bool> showEdge;
-    OpenMesh::VPropHandleT<bool> showVertex;
-    OpenMesh::FPropHandleT<bool> showFace;
+    OpenMesh::EPropHandleT<bool> showEdge, selectedEdge;
+    OpenMesh::VPropHandleT<bool> showVertex, selectedVertex;
+    OpenMesh::FPropHandleT<bool> showFace, selectedFace;
     bool showFaces;
     bool showEdges;
     bool showVertices;
@@ -51,6 +56,27 @@ public:
     bool *drawProperties[5];
 
     bool isCurve;
+
+    unsigned int bufferObjs[NUM_BUFFERS];
+
+    float* positions;
+    float* normals;
+    unsigned int* idxFaces;
+    float* colorFaces;
+
+    float* colorEdges;
+    float* posEdges;
+
+    float* colorVertices;
+    float* posVertices;
+
+    virtual void updateVBO();
+    virtual void createVBO();
+    virtual void render();
+
+    bool VBOcreated;
+    int iSizeofidxFaces;
+
 };
 
 

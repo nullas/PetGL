@@ -3,9 +3,13 @@
 
 #include <vector>
 
+#include <GL/glew.h>
+
+
 #include <QMainWindow>
 #include <QSignalMapper>
 #include <QMenu>
+
 
 #include <QGLViewer/qglviewer.h>
 

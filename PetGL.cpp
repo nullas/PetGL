@@ -10,10 +10,8 @@
 #include <QCheckBox>
 #include <QSignalMapper>
 
-#include <QGLViewer/qglviewer.h>
-
-#include "PetMesh.h"
 #include "PetGL.h"
+#include "PetMesh.h"
 #include "ui_PetGL.h"
 #include "PetCurve.h"
 

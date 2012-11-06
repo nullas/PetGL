@@ -22,6 +22,15 @@ public:
     typedef PetCurve::FaceVertexIter FaceVertexIter;
     typedef PetCurve::FaceEdgeIter CurveEdgeIter;
 
+    virtual void init();
+    virtual void updateVBO();
+    virtual void createVBO();
+    virtual void render();
+
+private:
+    inline unsigned int n_curve_edges(){return _n_curve_edges;}
+    unsigned int _n_curve_edges;
+
 };
 
 #endif // PETCURVE_H

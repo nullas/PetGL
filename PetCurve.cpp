@@ -9,6 +9,8 @@
 
 #include "PetCurve.h"
 
+#define BUFFER_OFFSET(offset) ((GLvoid*) NULL + offset)
+
 PetCurve::PetCurve()
 {
     this->add_property(isCurveEdge);
@@ -33,7 +35,7 @@ bool PetCurve::read_curve(QString filename)
     f_mesh = fdir.absoluteFilePath(fi.baseName() + ".ply");
     if (!OpenMesh::IO::read_mesh(*this, f_mesh.toStdString())) return false;
     this->SetName(fi.fileName());
-    this->init(true);
+    PetMesh::init(true);
 
     PetMesh::HalfedgeIter he_it;
     PetMesh::VertexHandle he_begin,he_end;
@@ -47,6 +49,7 @@ bool PetCurve::read_curve(QString filename)
     {
         this->property(isCurveEdge, *e_it) = true;
     }
+    unsigned int deletededges = 0;
     fin >> begin_vertex >> end_vertex;
     while (!fin.eof())
     {
@@ -66,11 +69,19 @@ bool PetCurve::read_curve(QString filename)
                 }//endif ( he_end.idx() == end_vertex)
             }//endif (he_begin.idx() == begin_vertex)
         }//end for
+        deletededges++;
         fin >> begin_vertex >> end_vertex;
     }//end while
     fin.close();
+    _n_curve_edges = n_edges() - deletededges;
     return true;
 }
+
+void PetCurve::init()
+{
+
+}
+
 
 bool PetCurve::save(QString filename)
 {
@@ -104,3 +115,120 @@ bool PetCurve::save(QString filename)
     fout.close();
     return true;
 }
+
+void PetCurve::createVBO()
+{
+    glGenBuffers(NUM_BUFFERS, bufferObjs);
+
+    colorEdges = new float[8 * sizeof(float) * n_curve_edges()];
+    posEdges = new float[6 * sizeof(float) * n_curve_edges()];
+    PetMesh::HalfedgeHandle h_hnd;
+    PetMesh::VertexHandle v_hnd;
+    PetMesh::EdgeIter e_it;
+    PetMesh::Point pos;
+    unsigned int tmpidx = 0;
+    PetMesh::Color tmpcolor;
+    for (e_it = this->edges_begin(); e_it != this->edges_end(); ++e_it)
+    {
+        if (this->property(isCurveEdge, *e_it))
+        {
+            h_hnd = this->halfedge_handle(*e_it, 0);
+            tmpcolor = this->color(*e_it);
+            v_hnd = this->from_vertex_handle(h_hnd);
+            pos = this->point(v_hnd);
+            posEdges[3 * tmpidx] = pos[0];
+            posEdges[3 * tmpidx + 1] = pos[1];
+            posEdges[3 * tmpidx + 2] = pos[2];
+            colorEdges[4 * tmpidx] = tmpcolor[0];
+            colorEdges[4 * tmpidx + 1] = tmpcolor[1];
+            colorEdges[4 * tmpidx + 2] = tmpcolor[2];
+            colorEdges[4 * tmpidx + 3] = tmpcolor[3];
+            tmpidx++;
+            v_hnd = this->to_vertex_handle(h_hnd);
+            pos = this->point(v_hnd);
+            posEdges[3 * tmpidx] = pos[0];
+            posEdges[3 * tmpidx + 1] = pos[1];
+            posEdges[3 * tmpidx + 2] = pos[2];
+            colorEdges[4 * tmpidx] = tmpcolor[0];
+            colorEdges[4 * tmpidx + 1] = tmpcolor[1];
+            colorEdges[4 * tmpidx + 2] = tmpcolor[2];
+            colorEdges[4 * tmpidx + 3] = tmpcolor[3];
+            tmpidx++;
+        }
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[4]);
+    glBufferData(GL_ARRAY_BUFFER, 8 * sizeof(float) * n_curve_edges(), colorEdges, GL_DYNAMIC_DRAW);
+    delete [] colorEdges;
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[5]);
+    glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float) * n_curve_edges(), posEdges, GL_DYNAMIC_DRAW);
+    delete [] posEdges;
+
+    VBOcreated = true;
+
+}
+
+void PetCurve::updateVBO()
+{
+    colorEdges = new float[8 * sizeof(float) * n_curve_edges()];
+    posEdges = new float[6 * sizeof(float) * n_curve_edges()];
+    PetMesh::HalfedgeHandle h_hnd;
+    PetMesh::VertexHandle v_hnd;
+    unsigned int tmpidx = 0;
+    PetMesh::Color tmpcolor;
+    PetMesh::EdgeIter e_it;
+    PetMesh::Point pos;
+    for (e_it = this->edges_begin(); e_it != this->edges_end(); ++e_it)
+    {
+        if (this->property(isCurveEdge, *e_it))
+        {
+            h_hnd = this->halfedge_handle(*e_it, 0);
+            tmpcolor = this->color(*e_it);
+            v_hnd = this->from_vertex_handle(h_hnd);
+            pos = this->point(v_hnd);
+            posEdges[3 * tmpidx] = pos[0];
+            posEdges[3 * tmpidx + 1] = pos[1];
+            posEdges[3 * tmpidx + 2] = pos[2];
+            colorEdges[4 * tmpidx] = tmpcolor[0];
+            colorEdges[4 * tmpidx + 1] = tmpcolor[1];
+            colorEdges[4 * tmpidx + 2] = tmpcolor[2];
+            colorEdges[4 * tmpidx + 3] = tmpcolor[3];
+            tmpidx++;
+            v_hnd = this->to_vertex_handle(h_hnd);
+            pos = this->point(v_hnd);
+            posEdges[3 * tmpidx] = pos[0];
+            posEdges[3 * tmpidx + 1] = pos[1];
+            posEdges[3 * tmpidx + 2] = pos[2];
+            colorEdges[4 * tmpidx] = tmpcolor[0];
+            colorEdges[4 * tmpidx + 1] = tmpcolor[1];
+            colorEdges[4 * tmpidx + 2] = tmpcolor[2];
+            colorEdges[4 * tmpidx + 3] = tmpcolor[3];
+            tmpidx++;
+        }
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[4]);
+    glBufferData(GL_ARRAY_BUFFER, 8 * sizeof(float) * n_curve_edges(), colorEdges, GL_DYNAMIC_DRAW);
+    delete [] colorEdges;
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[5]);
+    glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float) * n_curve_edges(), posEdges, GL_DYNAMIC_DRAW);
+    delete [] posEdges;
+
+}
+
+void PetCurve::render()
+{
+    if (!VBOcreated)
+        createVBO();
+
+    if (showEdges)
+    {
+        glDisable(GL_LIGHTING);
+        glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[4]);
+        glColorPointer(4, GL_FLOAT, 0, BUFFER_OFFSET(0));
+        glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[5]);
+        glVertexPointer(3, GL_FLOAT, 0, BUFFER_OFFSET(0));
+        glLineWidth(2.0);
+        glDrawArrays(GL_LINES, 0, 2 * n_curve_edges());
+    }
+
+}
+

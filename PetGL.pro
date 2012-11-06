@@ -34,7 +34,7 @@ FORMS    += \
     PetGL.ui
 
 LIBS    += -lQGLViewer
-QMAKE_LIBS_OPENGL *= -lGLU
+QMAKE_LIBS_OPENGL *= -lGLU -lGLEW
 
 
 OTHER_FILES += \

@@ -29,6 +29,9 @@ include_directories (${QGLVIEWER_INCLUDE_DIR})
 find_package (OpenGL)
 include_directories (OPENGL_INCLUDE_DIR)
 
+#find GLEW
+find_package (GLEW)
+include_directories (GLEW_INCLUDE_DIRS)
 
 #find OpenMesh
 find_package (OpenMesh)
@@ -63,4 +66,5 @@ target_link_libraries (PetGL ${PETSC_LIBRARIES}
 	${QT_LIBRARIES} 
 	${QGLVIEWER_LIBRARIES} 
 	${OPENGL_LIBRARIES}
-	${OPENMESH_LIBRARIES})
+	${OPENMESH_LIBRARIES}
+	${GLEW_LIBRARIES})

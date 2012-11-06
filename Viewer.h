@@ -1,7 +1,10 @@
 #ifndef VIEWER_H
 #define VIEWER_H
 
+#include <limits.h>
 #include <vector>
+
+#include <GL/glew.h>
 
 #include <QGLViewer/qglviewer.h>
 
