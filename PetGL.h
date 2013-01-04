@@ -30,6 +30,7 @@ public:
     int AddPetMesh(PetMesh *petMesh);
     int DeletePetMesh(PetMesh *);
     std::vector<PetMesh*> PetMeshLists;
+    PetMesh* getCurrentMesh();
 
     
 private slots:
@@ -39,6 +40,7 @@ private slots:
     void savePet();
     void deletePet();
     void focusPet();
+
 
 private:
     QSignalMapper *signalMapper;

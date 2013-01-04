@@ -9,7 +9,8 @@
 #include <OpenMesh/Core/Mesh/PolyMesh_ArrayKernelT.hh>
 #include <QString>
 
-#define NUM_BUFFERS 8
+#define NUM_BUFFERS 10
+//8 for mesh and 2 temporary
 
 struct PetTraits : public OpenMesh::DefaultTraits
 {
@@ -76,6 +77,9 @@ public:
 
     bool VBOcreated;
     int iSizeofidxFaces;
+
+    static const PetMesh::Color FaceColor, VertexColor, EdgeColor;
+    static const PetMesh::Color SelectFaceColor, SelectVertexColor, SelectEdgeColor;
 
 };
 

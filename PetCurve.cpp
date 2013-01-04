@@ -9,7 +9,7 @@
 
 #include "PetCurve.h"
 
-#define BUFFER_OFFSET(offset) ((GLvoid*) NULL + offset)
+#define BUFFER_OFFSET(offset) static_cast<const GLvoid*>(offset)
 
 PetCurve::PetCurve()
 {
@@ -163,6 +163,30 @@ void PetCurve::createVBO()
     glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float) * n_curve_edges(), posEdges, GL_DYNAMIC_DRAW);
     delete [] posEdges;
 
+    colorVertices = new float[4 * sizeof(float) * n_vertices()];
+    posVertices = new float[3 * sizeof(float) * n_vertices()];
+    PetMesh::VertexIter v_it, v_end(this->vertices_end());
+    tmpidx = 0;
+    for (v_it = this->vertices_begin(); v_it != v_end; ++v_it)
+    {
+        pos = this->point(*v_it);
+        tmpcolor = this->color(*v_it);
+        colorVertices[tmpidx * 4] = tmpcolor[0];
+        colorVertices[tmpidx * 4+ 1] = tmpcolor[1];
+        colorVertices[tmpidx * 4+ 2] = tmpcolor[2];
+        colorVertices[tmpidx * 4+ 3] = tmpcolor[3];
+        posVertices[tmpidx * 3] = pos[0];
+        posVertices[tmpidx * 3 + 1] = pos[1];
+        posVertices[tmpidx * 3 + 2] = pos[2];
+        ++tmpidx;
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[6]);
+    glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(float) * n_vertices(), colorVertices, GL_DYNAMIC_DRAW);
+    delete [] colorVertices;
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[7]);
+    glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(float) * n_vertices(), posVertices, GL_DYNAMIC_DRAW);
+    delete [] posVertices;
+
     VBOcreated = true;
 
 }
@@ -212,12 +236,38 @@ void PetCurve::updateVBO()
     glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float) * n_curve_edges(), posEdges, GL_DYNAMIC_DRAW);
     delete [] posEdges;
 
+    colorVertices = new float[4 * sizeof(float) * n_vertices()];
+    posVertices = new float[3 * sizeof(float) * n_vertices()];
+    PetMesh::VertexIter v_it, v_end(this->vertices_end());
+    tmpidx = 0;
+    for (v_it = this->vertices_begin(); v_it != v_end; ++v_it)
+    {
+        pos = this->point(*v_it);
+        tmpcolor = this->color(*v_it);
+        colorVertices[tmpidx * 4] = tmpcolor[0];
+        colorVertices[tmpidx * 4+ 1] = tmpcolor[1];
+        colorVertices[tmpidx * 4+ 2] = tmpcolor[2];
+        colorVertices[tmpidx * 4+ 3] = tmpcolor[3];
+        posVertices[tmpidx * 3] = pos[0];
+        posVertices[tmpidx * 3 + 1] = pos[1];
+        posVertices[tmpidx * 3 + 2] = pos[2];
+        ++tmpidx;
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[6]);
+    glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(float) * n_vertices(), colorVertices, GL_DYNAMIC_DRAW);
+    delete [] colorVertices;
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[7]);
+    glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(float) * n_vertices(), posVertices, GL_DYNAMIC_DRAW);
+    delete [] posVertices;
+
+
 }
 
 void PetCurve::render()
 {
     if (!VBOcreated)
         createVBO();
+
 
     if (showEdges)
     {
@@ -229,6 +279,19 @@ void PetCurve::render()
         glLineWidth(2.0);
         glDrawArrays(GL_LINES, 0, 2 * n_curve_edges());
     }
+    if (showVertices)
+        {
+            glPushAttrib(GL_LIGHTING_BIT);
+            glDisable(GL_LIGHTING);
+            glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[6]);
+            glColorPointer(4, GL_FLOAT, 0, BUFFER_OFFSET(0));
+            glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[7]);
+            glVertexPointer(3, GL_FLOAT, 0, BUFFER_OFFSET(0));
+            glPointSize(3.0);
+            glDrawArrays(GL_POINTS, 0, n_vertices());
+            glPopAttrib();
+    }
+
 
 }
 

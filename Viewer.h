@@ -6,6 +6,8 @@
 
 #include <GL/glew.h>
 
+#include <QMouseEvent>
+
 #include <QGLViewer/qglviewer.h>
 
 #include "PetGL.h"
@@ -28,7 +30,15 @@ public:
   void init();
 
   void drawMesh(PetMesh& petMesh);
-
+  void Select(QMouseEvent*);
+  void Deselect(QMouseEvent*);
+  void drawPickVertices();
+  void pickVertices(QMouseEvent*);
+  void unpickVertices(QMouseEvent*);
+protected:
+  virtual void mousePressEvent(QMouseEvent* e);
+private:
+  static const int PickRadius;
 }; // end class Viewer
 
 #endif // VIEWER_H

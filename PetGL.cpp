@@ -208,10 +208,19 @@ void PetGL::focusPet()
 {
     QTreeWidgetItem *item = this->ui->MeshLists->currentItem();
     PetMesh *mesh;
-    mesh = (PetMesh *) item->data(0,Qt::UserRole).value<void *>();
+    mesh = static_cast<PetMesh *>(item->data(0,Qt::UserRole).value<void *>());
     this->ui->MainViewer->setSceneRadius(mesh->SceneRadius);
     qglviewer::Vec center;
     center.setValue(mesh->SceneCenter[0],mesh->SceneCenter[1],mesh->SceneCenter[2]);
     this->ui->MainViewer->setSceneCenter(center);
     this->ui->MainViewer->showEntireScene();
+}
+
+PetMesh* PetGL::getCurrentMesh()
+{
+    QTreeWidgetItem *item = this->ui->MeshLists->currentItem();
+    if (item == NULL) return NULL;
+    PetMesh *mesh;
+    mesh = static_cast<PetMesh *>(item->data(0,Qt::UserRole).value<void *>());
+    return mesh;
 }
