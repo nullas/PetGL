@@ -1,41 +1,13 @@
-#-------------------------------------------------
-#
-# Project created by QtCreator 2012-10-15T20:58:57
-#
-#-------------------------------------------------
+TEMPLATE = subdirs
+#must be built
 
-QT       += core gui opengl xml
-CONFIG  += qt
+SUBDIRS = PGL1 PGL2 PGL3
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+PGL1.file = PGL/PetMesh.pro
+PGL2.file = PGL/PGL.pro
+PGL3.file = PGL/PetGL.pro
 
-TARGET = PetGL
-TEMPLATE = app
+#plugins
+include (plugins.pri)
 
-DESTDIR = ./q_bin
-
-include (packages.pri)
-
-SOURCES += main.cpp\
-    Viewer.cpp \
-    PetGL.cpp \
-    PetMesh.cpp \
-    PetCurve.cpp
-
-HEADERS  += \
-    PetGLConfig.h \
-    PetMesh.h \
-    Viewer.h \
-    PetGL.h \
-    QStreamRedirect.h \
-    PetCurve.h
-
-FORMS    += \
-    PetGL.ui
-
-LIBS    += -lQGLViewer
-QMAKE_LIBS_OPENGL *= -lGLU -lGLEW
-
-
-OTHER_FILES += \
-    packages.pri
+CONFIG += ordered
