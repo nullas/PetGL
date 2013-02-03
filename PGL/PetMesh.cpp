@@ -8,14 +8,15 @@
 #include <OpenMesh/Core/IO/MeshIO.hh>
 
 #include "PetMesh.h"
+#include "defs.h"
 
 using namespace std;
 
-const PetMesh::Color PetMesh::SelectEdgeColor(1,1,1,1);
-const PetMesh::Color PetMesh::SelectVertexColor(1,0,0,1);
-const PetMesh::Color PetMesh::SelectFaceColor(1,1,1,1);
-const PetMesh::Color PetMesh::EdgeColor(0.6, 0.6, 0.6, 1.);
-const PetMesh::Color PetMesh::VertexColor(0.8, 0.8, 0.7, 1.);
+const PetMesh::Color PetMesh::SelectEdgeColor = OpenMesh::color_cast<PetMesh::Color>(OpenMesh::Vec4uc(20,20,20,255));
+const PetMesh::Color PetMesh::SelectVertexColor = OpenMesh::color_cast<PetMesh::Color>(OpenMesh::Vec4uc(220,87,18,255));
+const PetMesh::Color PetMesh::SelectFaceColor = OpenMesh::color_cast<PetMesh::Color>(OpenMesh::Vec4uc(17,64,108,255));
+const PetMesh::Color PetMesh::EdgeColor= OpenMesh::color_cast<PetMesh::Color>(OpenMesh::Vec4uc(36,169,225,255));
+const PetMesh::Color PetMesh::VertexColor = OpenMesh::color_cast<PetMesh::Color>(OpenMesh::Vec4uc(138,151,123,255));
 const PetMesh::Color PetMesh::FaceColor(0.2, 0.3, 0.7, 1.);
 
 PetMesh::PetMesh(QString m_name)
@@ -113,6 +114,11 @@ void PetMesh::init(bool isCurve)
     }
 
     VBOcreated = false;
+}
+
+bool PetMesh::iscurve()
+{
+    return false;
 }
 
 
@@ -418,8 +424,310 @@ void PetMesh::render()
             glColorPointer(4, GL_FLOAT, 0, 0);
             glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[7]);
             glVertexPointer(3, GL_FLOAT, 0, 0);
-            glPointSize(3.0);
+            glPointSize(PointSize);
             glDrawArrays(GL_POINTS, 0, n_vertices());
             glPopAttrib();
+    }
+}
+
+void PetMesh::setVertexSelected(const unsigned int idx)
+{
+    if (idx >= n_vertices()) return;
+    PetMesh::VertexHandle v_hnd = this->vertex_handle(idx);
+    this->set_color(v_hnd, SelectVertexColor);
+    this->property(selectedVertex, v_hnd) = true;
+}
+
+void PetMesh::setVertexSelected(const PetMesh::VertexHandle hnd)
+{
+    if (!hnd.is_valid()) return;
+    this->set_color(hnd, SelectVertexColor);
+    this->property(selectedVertex, hnd) = true;
+}
+
+void PetMesh::setVertexUnselected(const unsigned int idx)
+{
+    if (idx >= n_vertices()) return;
+    PetMesh::VertexHandle v_hnd = this->vertex_handle(idx);
+    this->set_color(v_hnd, VertexColor);
+    this->property(selectedVertex, v_hnd) = false;
+}
+
+void PetMesh::setVertexUnselected(const PetMesh::VertexHandle hnd)
+{
+    if (!hnd.is_valid()) return;
+    this->set_color(hnd, VertexColor);
+    this->property(selectedVertex, hnd) = false;
+}
+
+void PetMesh::setVerticesSelected(const std::vector<unsigned int>& idx)
+{
+    for (std::vector<unsigned int>::const_iterator it = idx.begin(); it != idx.end(); ++it)
+    {
+        setVertexSelected(*it);
+    }
+}
+
+void PetMesh::setVerticesSelected(const std::vector<PetMesh::VertexHandle>& hnd)
+{
+    for (std::vector<PetMesh::VertexHandle>::const_iterator it = hnd.begin(); it != hnd.end(); ++it)
+    {
+        setVertexSelected(*it);
+    }
+}
+
+void PetMesh::setVerticesUnelected(const std::vector<unsigned int>& idx)
+{
+    for (std::vector<unsigned int>::const_iterator it = idx.begin(); it != idx.end(); ++it)
+    {
+        setVertexUnselected(*it);
+    }
+}
+
+void PetMesh::setVerticesUnelected(const std::vector<PetMesh::VertexHandle>& idx)
+{
+    for (std::vector<PetMesh::VertexHandle>::const_iterator it = idx.begin(); it != idx.end(); ++it)
+    {
+        setVertexUnselected(*it);
+    }
+}
+
+void PetMesh::setFaceSelected(const unsigned int idx)
+{
+    if (idx >= n_faces()) return;
+    PetMesh::FaceHandle f_hnd = this->face_handle(idx);
+    this->set_color(f_hnd, SelectFaceColor);
+    this->property(selectedFace, f_hnd) = true;
+}
+
+void PetMesh::setFaceSelected(const PetMesh::FaceHandle hnd)
+{
+    if (!hnd.is_valid()) return;
+    this->set_color(hnd, SelectFaceColor);
+    this->property(selectedFace, hnd) = true;
+}
+
+void PetMesh::setFaceUnselected(const unsigned int idx)
+{
+    if (idx >= n_faces()) return;
+    PetMesh::FaceHandle f_hnd = this->face_handle(idx);
+    this->set_color(f_hnd, FaceColor);
+    this->property(selectedFace, f_hnd) = false;
+}
+
+void PetMesh::setFaceUnselected(const PetMesh::FaceHandle hnd)
+{
+    if (!hnd.is_valid()) return;
+    this->set_color(hnd, FaceColor);
+    this->property(selectedFace, hnd) = false;
+}
+
+void PetMesh::setFacesSelected(const std::vector<unsigned int>& idx)
+{
+    for (std::vector<unsigned int>::const_iterator it = idx.begin(); it != idx.end(); ++it)
+    {
+        setFaceSelected(*it);
+    }
+}
+
+void PetMesh::setFacesSelected(const std::vector<PetMesh::FaceHandle>& idx)
+{
+    for (std::vector<PetMesh::FaceHandle>::const_iterator it = idx.begin(); it != idx.end(); ++it)
+    {
+        setFaceSelected(*it);
+    }
+}
+
+void PetMesh::setFacesUnselected(const std::vector<unsigned int>& idx)
+{
+    for (std::vector<unsigned int>::const_iterator it = idx.begin(); it != idx.end(); ++it)
+    {
+        setFaceUnselected(*it);
+    }
+}
+
+void PetMesh::setFacesUnselected(const std::vector<PetMesh::FaceHandle>& idx)
+{
+    for (std::vector<PetMesh::FaceHandle>::const_iterator it = idx.begin(); it != idx.end(); ++it)
+    {
+        setFaceUnselected(*it);
+    }
+}
+
+void PetMesh::setEdgeSelected(const unsigned int idx)
+{
+    PetMesh::EdgeHandle e_hnd = this->edge_handle(idx);
+    if (!e_hnd.is_valid()) return;
+    this->set_color(e_hnd, SelectEdgeColor);
+    this->property(selectedEdge, e_hnd) = true;
+}
+
+void PetMesh::setEdgeSelected(const PetMesh::EdgeHandle hnd)
+{
+    if (!hnd.is_valid()) return;
+    this->set_color(hnd, SelectEdgeColor);
+    this->property(selectedEdge, hnd) = true;
+}
+
+void PetMesh::setEdgesSelected(const std::vector<unsigned int> & idx)
+{
+    std::vector<unsigned int>::const_iterator it = idx.begin(), it_end = idx.end();
+    for (; it != it_end; ++it)
+    {
+        setEdgeSelected(*it);
+    }
+}
+
+void PetMesh::setEdgesSelected(const std::vector<PetMesh::EdgeHandle> & idx)
+{
+    std::vector<PetMesh::EdgeHandle>::const_iterator it = idx.begin(), it_end = idx.end();
+    for (; it != it_end; ++it)
+    {
+        setEdgeSelected(*it);
+    }
+}
+
+void PetMesh::setEdgeUnselected(const unsigned int idx)
+{
+    PetMesh::EdgeHandle e_hnd = this->edge_handle(idx);
+    this->set_color(e_hnd, EdgeColor);
+    this->property(selectedEdge, e_hnd) = false;
+}
+
+void PetMesh::setEdgeUnselected(const PetMesh::EdgeHandle hnd)
+{
+    if (!hnd.is_valid()) return;
+    this->set_color(hnd, EdgeColor);
+    this->property(selectedEdge, hnd) = false;
+}
+
+void PetMesh::setEdgesUnselected(const std::vector<unsigned int>& idx)
+{
+    std::vector<unsigned int>::const_iterator it, it_end = idx.end();
+    for (; it != it_end; ++it)
+    {
+        setEdgeUnselected(*it);
+    }
+}
+
+void PetMesh::setEdgesUnselected(const std::vector<PetMesh::EdgeHandle>& idx)
+{
+    std::vector<PetMesh::EdgeHandle>::const_iterator it, it_end = idx.end();
+    for (; it != it_end; ++it)
+    {
+        setEdgeUnselected(*it);
+    }
+}
+
+void PetMesh::getSelectedVertices(std::vector<unsigned int>& idx)
+{
+    idx.clear();
+    PetMesh::VertexIter v_it = vertices_begin(), v_end = vertices_end();
+    for(; v_it != v_end; ++v_it)
+    {
+        if (this->property(selectedVertex, v_it))
+            idx.push_back((*v_it).idx());
+    }
+}
+
+void PetMesh::getSelectedVertices(std::vector<PetMesh::VertexHandle>& hnd)
+{
+    hnd.clear();
+    PetMesh::VertexIter v_it = vertices_begin(), v_end = vertices_end();
+    for(; v_it != v_end; ++v_it)
+    {
+        if (this->property(selectedVertex, v_it))
+            hnd.push_back((v_it.handle()));
+    }
+}
+
+void PetMesh::getSelectedFaces(std::vector<unsigned int>& idx)
+{
+    idx.clear();
+    PetMesh::FaceIter f_it = faces_begin(), f_end = faces_end();
+    for(; f_it != f_end; ++f_it)
+    {
+        if (this->property(selectedFace, f_it))
+            idx.push_back((*f_it).idx());
+    }
+}
+
+void PetMesh::getSelectedFaces(std::vector<PetMesh::FaceHandle>& idx)
+{
+    idx.clear();
+    PetMesh::FaceIter f_it = faces_begin(), f_end = faces_end();
+    for(; f_it != f_end; ++f_it)
+    {
+        if (this->property(selectedFace, f_it))
+            idx.push_back(*f_it);
+    }
+}
+
+void PetMesh::getSelectedEdges(std::vector<unsigned int> & idx)
+{
+    idx.clear();
+    PetMesh::EdgeIter e_it = edges_begin(), e_end = edges_end();
+    for (; e_it != e_end; ++e_it)
+    {
+        if (this->property(selectedEdge, e_it))
+            idx.push_back((*e_it).idx());
+    }
+}
+
+void PetMesh::getSelectedEdges(std::vector<PetMesh::EdgeHandle> & idx)
+{
+    idx.clear();
+    PetMesh::EdgeIter e_it = edges_begin(), e_end = edges_end();
+    for (; e_it != e_end; ++e_it)
+    {
+        if (this->property(selectedEdge, e_it))
+            idx.push_back(*e_it);
+    }
+}
+
+void PetMesh::setVerticesSelectedByFace(const PetMesh::FaceHandle& hnd)
+{
+    for(PetMesh::FaceVertexIter it = PetMesh::fv_iter(hnd); it; ++it)
+    {
+        setVertexSelected(it.handle());
+    }
+}
+
+void PetMesh::setVerticesSelectedByFaces(const std::vector<PetMesh::FaceHandle>& hnd)
+{
+    std::vector<PetMesh::FaceHandle>::const_iterator it = hnd.begin(), it_end = hnd.end();
+    for (; it != it_end; ++it)
+    {
+        setVerticesSelectedByFace(*it);
+    }
+}
+
+void PetMesh::clearSelectedEdges()
+{
+    PetMesh::EdgeIter e_it = edges_begin(), e_end = edges_end();
+    for (; e_it != e_end; ++e_it)
+    {
+        this->property(selectedEdge, e_it) = false;
+        this->set_color(e_it, EdgeColor);
+    }
+}
+
+void PetMesh::clearSelectedVertices()
+{
+    PetMesh::VertexIter v_it = vertices_begin(), v_end = vertices_end();
+    for (; v_it != v_end; ++v_it)
+    {
+        this->property(selectedVertex, v_it) = false;
+        this->set_color(v_it, VertexColor);
+    }
+}
+
+void PetMesh::clearSelectedFaces()
+{
+    PetMesh::FaceIter f_it = faces_begin(), f_end = faces_end();
+    for (; f_it != f_end; ++f_it)
+    {
+        this->property(selectedFace, f_it) = false;
+        this->set_color(f_it, FaceColor);
     }
 }

@@ -11,14 +11,21 @@ TEMPLATE = lib
 
 CONFIG  += plugin dll
 
-include (../common.pri)
-SOURCES += elastic.cpp
+unix {
+    CONFIG += link_pkgconfig
+    PKGCONFIG += ipopt
+}
 
-HEADERS += elastic.h
+include (../common.pri)
+SOURCES += elastic.cpp \
+    optimize.cpp
+
+HEADERS += elastic.h \
+    optimize.h
 
 LIBS += -lPetMesh -lPGL
 
-DESTDIR = ../plugins
+DESTDIR = ..
 
 unix:!symbian {
     maemo5 {
@@ -28,3 +35,6 @@ unix:!symbian {
     }
     INSTALLS += target
 }
+
+FORMS += \
+    elasticpanel.ui

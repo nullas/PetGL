@@ -11,6 +11,7 @@
 #include <QSignalMapper>
 #include <QApplication>
 #include <QPluginLoader>
+#include <QTabWidget>
 
 #include "PetGL.h"
 #include "PetMesh.h"
@@ -67,16 +68,24 @@ PetGL::~PetGL()
 void PetGL::loadPlugins()
 {
     QDir pluginsDir(qApp->applicationDirPath());
-    pluginsDir.cd("plugins");
     foreach (QString fileName, pluginsDir.entryList(QDir::Files))
     {
      QPluginLoader loader(pluginsDir.absoluteFilePath(fileName));
      QObject* plugin = loader.instance();
+     PetPluginInterface* pplugin;
      if (plugin)
      {
-         std::cout << fileName.toStdString() << std::endl;
+         std::cout << fileName.toStdString() << " loaded" << std::endl;
+         pplugin = qobject_cast<PetPluginInterface *>(plugin);
+         pplugin->initial(this);
+         PluginLists.push_back(pplugin);
      }
     }
+}
+
+QTabWidget* PetGL::getPluginTab()
+{
+    return ui->tabPlugin;
 }
 
 
@@ -242,4 +251,20 @@ PetMesh* PetGL::getCurrentMesh()
     PetMesh *mesh;
     mesh = static_cast<PetMesh *>(item->data(0,Qt::UserRole).value<void *>());
     return mesh;
+}
+
+void PetGL::updateView(int level)
+{
+    if (level == 0)
+    {
+        PetMesh* pmesh = getCurrentMesh();
+        if (pmesh)
+            pmesh->updateVBO();
+    }
+    else
+    {
+        for(std::vector<PetMesh*>::const_iterator it= PetMeshLists.begin(); it != PetMeshLists.end(); ++it)
+            (*it)->updateVBO();
+    }
+    ui->MainViewer->updateGL();
 }

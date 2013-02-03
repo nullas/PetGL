@@ -11,7 +11,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = PGL
 TEMPLATE = lib
 
-#DESTDIR = .
+DESTDIR = ..
 
 include (../externallib.pri)
 
@@ -20,16 +20,15 @@ SOURCES += \
     PetGL.cpp
 
 HEADERS  += \
-    PetMesh.h \
     Viewer.h \
     PetGL.h \
     QStreamRedirect.h \
-    PetCurve.h \
-    PluginInterface.h
+    PluginInterface.h \
+    defs.h
 
 FORMS += PetGL.ui
 
-LIBS += -L. -lPetMesh
+LIBS += -L.. -lPetMesh
 
 QMAKE_LIBS_OPENGL *= -lGLU -lGLEW
 

@@ -1,2 +1,2 @@
 INCLUDEPATH += ../PGL
-LIBS        += -L../PGL
+LIBS        += -L..

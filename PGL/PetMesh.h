@@ -2,6 +2,7 @@
 #define PETMESH_H
 
 #include <limits.h>
+#include <vector>
 
 #include <GL/glew.h>
 
@@ -35,6 +36,8 @@ public:
     ~PetMesh();
 
     virtual void init(bool isCurve = false);
+
+    virtual bool iscurve();
 
     bool read_mesh(QString filename);
     virtual bool save(QString filename);
@@ -81,6 +84,59 @@ public:
     static const PetMesh::Color FaceColor, VertexColor, EdgeColor;
     static const PetMesh::Color SelectFaceColor, SelectVertexColor, SelectEdgeColor;
 
+
+    void setVerticesSelected(const std::vector<unsigned int>&);
+    void setVertexSelected(const unsigned int);
+
+    void setFacesSelected(const std::vector<unsigned int>&);
+    void setFaceSelected(const unsigned int);
+
+    void setEdgesSelected(const std::vector<unsigned int>&);
+    void setEdgeSelected(const unsigned int);
+
+    void setVerticesUnelected(const std::vector<unsigned int>&);
+    void setVertexUnselected(const unsigned int);
+
+    void setFacesUnselected(const std::vector<unsigned int>&);
+    void setFaceUnselected(const unsigned int);
+
+    void setEdgesUnselected(const std::vector<unsigned int>&);
+    void setEdgeUnselected(const unsigned int);
+
+    void getSelectedVertices(std::vector<unsigned int>&);
+    void getSelectedFaces(std::vector<unsigned int>&);
+    virtual void getSelectedEdges(std::vector<unsigned int>&);
+
+    //Handle based
+
+    void setVerticesSelected(const std::vector<PetMesh::VertexHandle>&);
+    void setVertexSelected(const PetMesh::VertexHandle);
+
+    void setFacesSelected(const std::vector<PetMesh::FaceHandle>&);
+    void setFaceSelected(const PetMesh::FaceHandle);
+
+    void setEdgesSelected(const std::vector<PetMesh::EdgeHandle>&);
+    void setEdgeSelected(const PetMesh::EdgeHandle);
+
+    void setVerticesUnelected(const std::vector<PetMesh::VertexHandle>&);
+    void setVertexUnselected(const PetMesh::VertexHandle);
+
+    void setFacesUnselected(const std::vector<PetMesh::FaceHandle>&);
+    void setFaceUnselected(const PetMesh::FaceHandle);
+
+    void setEdgesUnselected(const std::vector<PetMesh::EdgeHandle>&);
+    void setEdgeUnselected(const PetMesh::EdgeHandle);
+
+    void getSelectedVertices(std::vector<PetMesh::VertexHandle>&);
+    void getSelectedFaces(std::vector<PetMesh::FaceHandle>&);
+    virtual void getSelectedEdges(std::vector<PetMesh::EdgeHandle>&);
+
+    void setVerticesSelectedByFace(const PetMesh::FaceHandle& hnd);
+    void setVerticesSelectedByFaces(const std::vector<PetMesh::FaceHandle>& hnd);
+
+    void clearSelectedVertices();
+    void clearSelectedEdges();
+    void clearSelectedFaces();
 };
 
 

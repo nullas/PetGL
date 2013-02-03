@@ -1,4 +1,6 @@
 #include <fstream>
+#include <utility>
+#include <algorithm>
 
 #include <QFileInfo>
 #include <QFile>
@@ -17,6 +19,11 @@ PetCurve::PetCurve()
     this->add_property(isCurveHalfEdge);
 }
 
+
+bool PetCurve::iscurve()
+{
+    return true;
+}
 
 bool PetCurve::read_curve(QString filename)
 {
@@ -50,28 +57,33 @@ bool PetCurve::read_curve(QString filename)
         this->property(isCurveEdge, *e_it) = true;
     }
     unsigned int deletededges = 0;
-    fin >> begin_vertex >> end_vertex;
+    fin >> begin_vertex ;
+    std::map<int,int> edges;
     while (!fin.eof())
     {
-        for (he_it = this->halfedges_begin(); he_it != this->halfedges_end(); ++he_it)
+        fin >> end_vertex;
+        edges.insert(std::map<int,int>::value_type(begin_vertex, end_vertex));
+        fin >> begin_vertex;
+    }
+
+    for (he_it = this->halfedges_begin(); he_it != this->halfedges_end(); ++he_it)
+    {
+        he_begin = this->from_vertex_handle(*he_it);
+        if (edges.count(he_begin.idx()))
         {
-            he_begin = this->from_vertex_handle(*he_it);
-            if (he_begin.idx() == begin_vertex)
+            he_end = this->to_vertex_handle(*he_it);
+            if (he_end.idx() == edges[he_begin.idx()])
             {
-                he_end = this->to_vertex_handle(*he_it);
-                if ( he_end.idx() == end_vertex)
-                {
-                    e_hnd = this->edge_handle(*he_it);
-                    this->property(isCurveEdge, e_hnd) = false;
-                    this->property(isCurveHalfEdge, *he_it) = false;
-                    this->property(isCurveHalfEdge, this->opposite_halfedge_handle(*he_it)) = false;
-                    this->property(showEdge, e_hnd) = false;
-                }//endif ( he_end.idx() == end_vertex)
-            }//endif (he_begin.idx() == begin_vertex)
-        }//end for
-        deletededges++;
-        fin >> begin_vertex >> end_vertex;
-    }//end while
+                e_hnd = this->edge_handle(*he_it);
+                this->property(isCurveEdge, e_hnd) = false;
+                this->property(isCurveHalfEdge, *he_it) = false;
+                this->property(isCurveHalfEdge, this->opposite_halfedge_handle(*he_it)) = false;
+                this->property(showEdge, e_hnd) = false;
+                deletededges++;
+            }//endif find
+        }//endif find
+    }//end for
+
     fin.close();
     _n_curve_edges = n_edges() - deletededges;
     return true;
@@ -291,7 +303,90 @@ void PetCurve::render()
             glDrawArrays(GL_POINTS, 0, n_vertices());
             glPopAttrib();
     }
-
-
 }
 
+void PetCurve::getSelectedEdges(std::vector<PetMesh::EdgeHandle> & idx)
+{
+    idx.clear();
+    PetMesh::EdgeIter e_it = edges_begin(), e_end = edges_end();
+    for (; e_it != e_end; ++e_it)
+    {
+        if (this->property(selectedEdge, e_it) && this->property(isCurveEdge, e_it))
+            idx.push_back(*e_it);
+    }
+}
+
+void PetCurve::getSelectedEdges(std::vector<unsigned int> & idx)
+{
+    idx.clear();
+    PetMesh::EdgeIter e_it = edges_begin(), e_end = edges_end();
+    for (; e_it != e_end; ++e_it)
+    {
+        if (this->property(selectedEdge, e_it) && this->property(isCurveEdge, e_it))
+            idx.push_back((*e_it).idx());
+    }
+}
+
+void PetCurve::setCurveSelected(const unsigned int idx)
+{
+    setFaceSelected(idx);
+    PetCurve::CurveEdgeIter ce_it = this->fe_iter(this->face_handle(idx));
+    for (; ce_it; ++ce_it)
+    {
+        setEdgeSelected(ce_it.handle().idx());
+    }
+}
+
+void PetCurve::setCurveUnselected(const unsigned int idx)
+{
+    setFaceUnselected(idx);
+    PetCurve::CurveEdgeIter ce_it = this->fe_iter(this->face_handle(idx));
+    for (; ce_it; ++ce_it)
+    {
+        setEdgeUnselected(ce_it.handle().idx());
+    }
+}
+
+void PetCurve::setCurvesSelected(const std::vector<unsigned int>& idx)
+{
+    std::vector<unsigned int>::const_iterator it = idx.begin(), it_end = idx.end();
+    for (; it != it_end; ++it)
+    {
+        setCurveSelected(*it);
+    }
+}
+
+void PetCurve::setCurvesUnselected(const std::vector<unsigned int>& idx)
+{
+    std::vector<unsigned int>::const_iterator it = idx.begin(), it_end = idx.end();
+    for (; it != it_end; ++it)
+    {
+        setCurveSelected(*it);
+    }
+}
+
+void PetCurve::getSelectedCurves(std::vector<unsigned int>& idx)
+{
+    getSelectedFaces(idx);
+}
+
+void PetCurve::getSelectedCurves(std::vector<PetCurve::CurveHandle>& idx)
+{
+    getSelectedFaces(idx);
+}
+
+void PetCurve::setVerticesSelectedByCurve(const PetCurve::CurveHandle &hnd)
+{
+    setVerticesSelectedByFace(hnd);
+}
+
+void PetCurve::setVerticesSelectedByCurves(const std::vector<PetCurve::CurveHandle> &hnd)
+{
+    setVerticesSelectedByFaces(hnd);
+}
+
+void PetCurve::clearSelectedCurves()
+{
+    clearSelectedEdges();
+    clearSelectedFaces();
+}

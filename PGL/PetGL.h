@@ -11,10 +11,10 @@
 #include <QMenu>
 
 
-#include <QGLViewer/qglviewer.h>
-
 #include "PetMesh.h"
+#include "PetCurve.h"
 #include "QStreamRedirect.h"
+#include "PluginInterface.h"
 
 namespace Ui {
 class MainWindow;
@@ -31,7 +31,10 @@ public:
     int DeletePetMesh(PetMesh *);
     std::vector<PetMesh*> PetMeshLists;
     PetMesh* getCurrentMesh();
+    QTabWidget* getPluginTab();
 
+public slots:
+    void updateView(int level=0);
     
 private slots:
     void on_actionLoad_mesh_triggered();
@@ -47,6 +50,7 @@ private:
     QSignalMapper *signalMapper;
     QStreamRedirect* qout;
     Ui::MainWindow *ui;
+    std::vector<PetPluginInterface *> PluginLists;
 };
 
 #endif // PETGL_H

@@ -19,8 +19,10 @@ DESTDIR = ..
 SOURCES += main.cpp
 HEADERS  += PetGL.h
 
-LIBS += -L. -lPGL
-LIBS += -L. -lPetMesh
+INCLUDEPATH += $$[MOC_DIR]
+
+LIBS += -L.. -lPGL
+LIBS += -L.. -lPetMesh
 
 
  

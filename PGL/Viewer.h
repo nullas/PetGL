@@ -11,7 +11,6 @@
 #include <QGLViewer/qglviewer.h>
 
 #include "PetGL.h"
-#include "Viewer.h"
 #include "PetMesh.h"
 #include "PetCurve.h"
 
