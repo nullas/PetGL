@@ -10,6 +10,9 @@
 #include <QSignalMapper>
 #include <QMenu>
 
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/ini_parser.hpp>
+
 
 #include "PetMesh.h"
 #include "PetCurve.h"
@@ -31,6 +34,7 @@ public:
     int DeletePetMesh(PetMesh *);
     std::vector<PetMesh*> PetMeshLists;
     PetMesh* getCurrentMesh();
+    bool setCurrentMesh(PetMesh* mesh);
     QTabWidget* getPluginTab();
 
 public slots:

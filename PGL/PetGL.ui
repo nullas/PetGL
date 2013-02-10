@@ -6,22 +6,20 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>731</width>
-    <height>488</height>
+    <width>1167</width>
+    <height>708</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
-  <widget class="Viewer" name="MainViewer">
-   <layout class="QGridLayout" name="gridLayout"/>
-  </widget>
+  <widget class="Viewer" name="MainViewer"/>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>731</width>
+     <width>1167</width>
      <height>20</height>
     </rect>
    </property>
@@ -60,8 +58,8 @@
       <verstretch>0</verstretch>
      </sizepolicy>
     </property>
-    <layout class="QVBoxLayout" name="verticalLayout_4">
-     <item>
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="0" column="0">
       <widget class="QTabWidget" name="tabWidget">
        <property name="currentIndex">
         <number>0</number>
@@ -113,7 +111,7 @@
        </widget>
       </widget>
      </item>
-     <item>
+     <item row="1" column="0">
       <widget class="QTabWidget" name="tabPlugin"/>
      </item>
     </layout>

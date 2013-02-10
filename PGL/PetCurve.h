@@ -19,7 +19,7 @@ public:
     typedef PetCurve::Face Curve;
     typedef PetCurve::FaceHandle CurveHandle;
     typedef PetCurve::FaceIter CurveIter;
-    typedef PetCurve::FaceVertexIter FaceVertexIter;
+    typedef PetCurve::FaceVertexIter CurveVertexIter;
     typedef PetCurve::FaceEdgeIter CurveEdgeIter;
     typedef PetCurve::FaceHalfedgeIter CurveHalfedgeIter;
 
@@ -28,6 +28,8 @@ public:
     virtual void updateVBO();
     virtual void createVBO();
     virtual void render();
+    virtual void drawPickEdges();
+    virtual void drawPickVertices();
 
     virtual void getSelectedEdges(std::vector<EdgeHandle> &hnd);
     virtual void getSelectedEdges(std::vector<unsigned int>&);
@@ -50,6 +52,7 @@ public:
     void clearSelectedCurves();
 
     inline unsigned int n_curve_edges(){return _n_curve_edges;}
+    virtual unsigned int v_n_edges() { return _n_curve_edges;}
 
 private:
     unsigned int _n_curve_edges;

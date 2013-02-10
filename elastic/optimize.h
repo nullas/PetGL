@@ -72,6 +72,9 @@ public:
     Ipopt::Number computeEdgeLength(int i, const Ipopt::Number *x);
     const Ipopt::Number* EdgePrevVertex(int i, const Ipopt::Number *x);
     const Ipopt::Number* EdgeNextVertex(int i, const Ipopt::Number *x);
+    const Ipopt::Number* TangentPrevVertex(int i, const Ipopt::Number *x);
+    const Ipopt::Number* TangentNextVertex(int i, const Ipopt::Number *x);
+    void computeTangentEdge(int i, const Ipopt::Number *x, Ipopt::Number* r);
     void computeEdge(int i, const Ipopt::Number *x, Ipopt::Number *r);
 
     inline void cross(const Ipopt::Number* p, const Ipopt::Number* q, Ipopt::Number* r);
@@ -79,10 +82,13 @@ public:
     inline void sub(const Ipopt::Number* p, const Ipopt::Number* q, Ipopt::Number* r);
     inline void addTo(const Ipopt::Number *p, Ipopt::Number* dst);
     inline void copy(const Ipopt::Number* src, Ipopt::Number* dst);
+    inline void copy(const Ipopt::Number* src, Ipopt::Number* dst, const Ipopt::Index n);
     inline void multiplyByScale(Ipopt::Number *x, Ipopt::Number dn);
+    inline void multiplyByScale(Ipopt::Number *x, Ipopt::Number dn, int n);
     inline void divideByScale(Ipopt::Number *x, Ipopt::Number dn);
     inline void multiplyByScale(const Ipopt::Number *x, Ipopt::Number dn, Ipopt::Number *r);
     inline void multiplyByScaleTo(const Ipopt::Number *x, Ipopt::Number dn, Ipopt::Number *r);
+    inline void multiplyByScaleTo(const Ipopt::Number *x, Ipopt::Number dn, Ipopt::Number *r, int n);
     inline void divideByScale(const Ipopt::Number *x, Ipopt::Number dn, Ipopt::Number *r);
     inline void setZeros(Ipopt::Number *r);
     inline void setZeros(Ipopt::Number *r, int n);

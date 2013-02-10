@@ -26,6 +26,8 @@ PetMesh::PetMesh(QString m_name)
     else
         this->name = m_name;
 
+    PointSize = _PointSize;
+
     this->add_property(showEdge);
     this->add_property(showFace);
     this->add_property(showVertex);
@@ -71,24 +73,7 @@ void PetMesh::init(bool isCurve)
     PetMesh::Color e_color(EdgeColor);
     PetMesh::Color v_color(VertexColor);
 
-    PetMesh::Point total(0, 0, 0);
-    for (v_it = this->vertices_begin(); v_it != v_end; ++v_it)
-    {
-        this->set_color(v_it, v_color);
-        this->property(showVertex, *v_it) = true;
-        this->property(selectedVertex, *v_it) = false;
-        total += this->point(v_it);
-    }
-    SceneCenter = total / this->n_vertices();
 
-    SceneRadius = 0;
-    double tempRadius;
-    for (v_it = this->vertices_begin(); v_it != v_end; ++v_it)
-    {
-        tempRadius = (this->point(v_it)-SceneCenter).norm();
-        if (tempRadius > SceneRadius)
-                SceneRadius = tempRadius;
-    }
 
     iSizeofidxFaces = 0;
     if (!isCurve)
@@ -112,6 +97,16 @@ void PetMesh::init(bool isCurve)
         this->property(showEdge, *e_it) = true;
         this->property(selectedEdge, *e_it) = false;
     }
+
+    for (v_it = this->vertices_begin(); v_it != v_end; ++v_it)
+    {
+        this->set_color(v_it, v_color);
+        this->property(showVertex, *v_it) = true;
+        this->property(selectedVertex, *v_it) = false;
+    }
+    SceneCenter = PetMesh::Point(0,0,0);
+
+    SceneRadius = 1;
 
     VBOcreated = false;
 }
@@ -417,18 +412,146 @@ void PetMesh::render()
         glPopAttrib();
     }
     if (showVertices)
-        {
-            glPushAttrib(GL_LIGHTING_BIT);
-            glDisable(GL_LIGHTING);
-            glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[6]);
-            glColorPointer(4, GL_FLOAT, 0, 0);
-            glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[7]);
-            glVertexPointer(3, GL_FLOAT, 0, 0);
-            glPointSize(PointSize);
-            glDrawArrays(GL_POINTS, 0, n_vertices());
-            glPopAttrib();
+    {
+        glPushAttrib(GL_LIGHTING_BIT);
+        glDisable(GL_LIGHTING);
+        glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[6]);
+        glColorPointer(4, GL_FLOAT, 0, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[7]);
+        glVertexPointer(3, GL_FLOAT, 0, 0);
+        glPointSize(PointSize);
+        glDrawArrays(GL_POINTS, 0, n_vertices());
+        glPopAttrib();
     }
 }
+
+void PetMesh::drawPickVertices()
+{
+
+    glPushAttrib(GL_LIGHTING_BIT);
+    glDisable(GL_LIGHTING);
+    glDisableClientState(GL_COLOR_ARRAY);
+    glDisableClientState(GL_NORMAL_ARRAY);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glColor3f(1.,1.,1.);
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[0]);
+    glVertexPointer(3, GL_FLOAT, 0, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferObjs[2]);
+    glDrawElements(GL_POLYGON, iSizeofidxFaces + n_faces(), GL_UNSIGNED_INT, 0);
+    glEnableClientState(GL_COLOR_ARRAY);
+    glEnableClientState(GL_NORMAL_ARRAY);
+    unsigned int n_vertice = n_vertices();
+    unsigned char* pickColor = new unsigned char[4 * n_vertice];
+    unsigned char r=0,g=0,b=0;
+    long int i = 0, tmpidx;
+    PetMesh::VertexIter v_end(vertices_end());
+    for (PetMesh::VertexIter v_it = vertices_begin(); v_it != v_end; ++v_it)
+    {
+        tmpidx = v_it.handle().idx();
+        r =  tmpidx % 256;
+        tmpidx /= 256;
+        g = tmpidx % 256;
+        tmpidx /= 256;
+        b = tmpidx;
+        if (b == 255) return;
+
+        pickColor[i * 4] = r;
+        pickColor[i * 4 + 1] = g;
+        pickColor[i * 4 + 2] = b;
+        pickColor[i * 4 + 3] = 1;
+        ++i;
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[8]);
+    glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(unsigned char) * n_vertice, pickColor, GL_DYNAMIC_DRAW);
+    glColorPointer(4, GL_UNSIGNED_BYTE, 0, 0);
+
+    delete [] pickColor;
+
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[7]);
+    glVertexPointer(3, GL_FLOAT, 0, 0);
+    glPointSize(2.0);
+    glDrawArrays(GL_POINTS, 0, n_vertice);
+    glPopAttrib();
+}
+
+void PetMesh::drawPickEdges()
+{
+    glPushAttrib(GL_LIGHTING_BIT);
+    glDisable(GL_LIGHTING);
+    glDisableClientState(GL_COLOR_ARRAY);
+    glDisableClientState(GL_NORMAL_ARRAY);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glColor3f(1.,1.,1.);
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[0]);
+    glVertexPointer(3, GL_FLOAT, 0, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferObjs[2]);
+    glDrawElements(GL_POLYGON, iSizeofidxFaces + n_faces(), GL_UNSIGNED_INT, 0);
+    glEnableClientState(GL_COLOR_ARRAY);
+    glEnableClientState(GL_NORMAL_ARRAY);
+    unsigned int n_edges = v_n_edges();
+    unsigned char* pickColor = new unsigned char[8 * n_edges];
+    unsigned char r=0,g=0,b=0;
+    long int i = 0, tmpidx;
+    PetMesh::EdgeIter e_end(edges_end());
+    PetMesh::EdgeIter e_it = edges_begin();
+    for (; e_it != e_end; ++e_it)
+    {
+        tmpidx = e_it.handle().idx();
+        r =  tmpidx % 256;
+        tmpidx /= 256;
+        g = tmpidx % 256;
+        tmpidx /= 256;
+        b = tmpidx;
+        if (b == 255) return;
+
+        pickColor[i * 4] = r;
+        pickColor[i * 4 + 1] = g;
+        pickColor[i * 4 + 2] = b;
+        pickColor[i * 4 + 3] = 1;
+        ++i;
+        pickColor[i * 4] = r;
+        pickColor[i * 4 + 1] = g;
+        pickColor[i * 4 + 2] = b;
+        pickColor[i * 4 + 3] = 1;
+        ++i;
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[8]);
+    glBufferData(GL_ARRAY_BUFFER, 8 * sizeof(unsigned char) * n_edges, pickColor, GL_DYNAMIC_DRAW);
+    glColorPointer(4, GL_UNSIGNED_BYTE, 0, 0);
+
+    delete [] pickColor;
+
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[5]);
+    glVertexPointer(3, GL_FLOAT, 0, 0);
+    glLineWidth(3.0);
+    glDrawArrays(GL_LINES, 0, 2 * v_n_edges());
+    glPopAttrib();
+}
+
+void PetMesh::computeScene()
+{
+    PetMesh::Point total(0, 0, 0);
+    PetMesh::VertexIter v_it, v_end = this->vertices_end();
+    for (v_it = this->vertices_begin(); v_it != v_end; ++v_it)
+    {
+        total += this->point(v_it);
+    }
+    SceneCenter = total / this->n_vertices();
+
+    SceneRadius = 0;
+    double tempRadius;
+    for (v_it = this->vertices_begin(); v_it != v_end; ++v_it)
+    {
+        tempRadius = (this->point(v_it)-SceneCenter).norm();
+        if (tempRadius > SceneRadius)
+                SceneRadius = tempRadius;
+    }
+    SceneRadius /= 0.618;
+}
+
+
 
 void PetMesh::setVertexSelected(const unsigned int idx)
 {

@@ -3,6 +3,6 @@
 
 #define _Mepsilon 1e-10
 
-#define PointSize 4.0
+#define _PointSize 5.0
 
 #endif // DEFS_H

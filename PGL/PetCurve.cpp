@@ -275,6 +275,95 @@ void PetCurve::updateVBO()
 
 }
 
+void PetCurve::drawPickEdges()
+{
+    glPushAttrib(GL_LIGHTING_BIT);
+    glDisable(GL_LIGHTING);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    unsigned int n_edges = v_n_edges();
+    unsigned char* pickColor = new unsigned char[8 * n_edges];
+    unsigned char r=0,g=0,b=0;
+    long int i = 0, tmpidx;
+    PetMesh::EdgeIter e_end(edges_end());
+    PetMesh::EdgeIter e_it = edges_begin();
+    for (; e_it != e_end; ++e_it)
+    {
+        if (!property(this->isCurveEdge, e_it.handle())) continue;
+        tmpidx = e_it.handle().idx();
+        r =  tmpidx % 256;
+        tmpidx /= 256;
+        g = tmpidx % 256;
+        tmpidx /= 256;
+        b = tmpidx;
+        if (b == 255) return;
+
+        pickColor[i * 4] = r;
+        pickColor[i * 4 + 1] = g;
+        pickColor[i * 4 + 2] = b;
+        pickColor[i * 4 + 3] = 1;
+        ++i;
+        pickColor[i * 4] = r;
+        pickColor[i * 4 + 1] = g;
+        pickColor[i * 4 + 2] = b;
+        pickColor[i * 4 + 3] = 1;
+        ++i;
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[8]);
+    glBufferData(GL_ARRAY_BUFFER, 8 * sizeof(unsigned char) * n_edges, pickColor, GL_DYNAMIC_DRAW);
+    glColorPointer(4, GL_UNSIGNED_BYTE, 0, 0);
+
+    delete [] pickColor;
+
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[5]);
+    glVertexPointer(3, GL_FLOAT, 0, 0);
+    glLineWidth(2.0);
+    glDrawArrays(GL_LINES, 0, 2 * n_edges);
+    glPopAttrib();
+}
+
+void PetCurve::drawPickVertices()
+{
+
+    glPushAttrib(GL_LIGHTING_BIT);
+    glDisable(GL_LIGHTING);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    unsigned int n_vertice = n_vertices();
+    unsigned char* pickColor = new unsigned char[4 * n_vertice];
+    unsigned char r=0,g=0,b=0;
+    long int i = 0, tmpidx;
+    PetMesh::VertexIter v_end(vertices_end());
+    for (PetMesh::VertexIter v_it = vertices_begin(); v_it != v_end; ++v_it)
+    {
+        tmpidx = v_it.handle().idx();
+        r =  tmpidx % 256;
+        tmpidx /= 256;
+        g = tmpidx % 256;
+        tmpidx /= 256;
+        b = tmpidx;
+        if (b == 255) return;
+
+        pickColor[i * 4] = r;
+        pickColor[i * 4 + 1] = g;
+        pickColor[i * 4 + 2] = b;
+        pickColor[i * 4 + 3] = 1;
+        ++i;
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[8]);
+    glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(unsigned char) * n_vertice, pickColor, GL_DYNAMIC_DRAW);
+    glColorPointer(4, GL_UNSIGNED_BYTE, 0, 0);
+
+    delete [] pickColor;
+
+    glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[7]);
+    glVertexPointer(3, GL_FLOAT, 0, 0);
+    glPointSize(2.0);
+    glDrawArrays(GL_POINTS, 0, n_vertice);
+    glPopAttrib();
+}
+
 void PetCurve::render()
 {
     if (!VBOcreated)
@@ -299,7 +388,7 @@ void PetCurve::render()
             glColorPointer(4, GL_FLOAT, 0, BUFFER_OFFSET(0));
             glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[7]);
             glVertexPointer(3, GL_FLOAT, 0, BUFFER_OFFSET(0));
-            glPointSize(3.0);
+            glPointSize(PointSize);
             glDrawArrays(GL_POINTS, 0, n_vertices());
             glPopAttrib();
     }

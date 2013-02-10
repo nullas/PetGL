@@ -1,6 +1,7 @@
 #include "optimize.h"
 
 #include <cmath>
+#include <cblas.h>
 
 #define _unused(x) ((void)x)
 #define Mep 1e-8
@@ -26,7 +27,7 @@ Optimize::Optimize(Elastic* p) : pElastic(p), vertices(p->verticesToOptimize)
     std::set<PetCurve::VertexHandle>::const_iterator v_hnd_end = setvertices.end();
     PetCurve::CurveIter c_it = curve->faces_begin(), c_end = curve->faces_end();
     int first, second;
-    PetCurve::Point p0, p1, pc;
+    OpenMesh::Vec3d p0, p1, pc;
     PetCurve::CurveHalfedgeIter ch_it;
     PetCurve::HalfedgeHandle tmp_e_hnd;
     for (; c_it != c_end; ++c_it)
@@ -39,8 +40,8 @@ Optimize::Optimize(Elastic* p) : pElastic(p), vertices(p->verticesToOptimize)
 
             if (setvertices.find(v0_hnd) != v_hnd_end || setvertices.find(v_hnd) != v_hnd_end)
             {
-                p0 = curve->point(v0_hnd);
-                pc = curve->point(v_hnd);
+                p0 = OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(v0_hnd));
+                pc = OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(v_hnd));
                 edges.push_back(curve->edge_handle(ch_it.handle()));
                 first = insertAdditionalPoint(v0_hnd);
                 second = insertAdditionalPoint(v_hnd);
@@ -53,9 +54,9 @@ Optimize::Optimize(Elastic* p) : pElastic(p), vertices(p->verticesToOptimize)
             if (setvertices.find(v0_hnd) != v_hnd_end || setvertices.find(v_hnd) != v_hnd_end
                     || setvertices.find(v1_hnd) != v_hnd_end)
             {
-                p0 = curve->point(v0_hnd);
-                pc = curve->point(v_hnd);
-                p1 = curve->point(v1_hnd);
+                p0 = OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(v0_hnd));
+                pc = OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(v_hnd));
+                p1 = OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(v1_hnd));
                 EnergyVertices.push_back(v_hnd);
                 i = insertAdditionalPoint(v0_hnd);
                 idxPrevVertex.push_back(i);
@@ -92,12 +93,12 @@ Optimize::Optimize(Elastic* p) : pElastic(p), vertices(p->verticesToOptimize)
         {
             first = insertAdditionalPoint(v0_hnd);
             second = insertAdditionalPoint(v1_hnd);
-            p0d = curve->point(v0_hnd);
-            p1d = curve->point(v1_hnd);
-            tmp = (p0 - p1).norm();
+            p0d = OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(v0_hnd));
+            p1d = OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(v1_hnd));
+            tmp = (p1d - p0d).norm();
             TangentConstraints.push_back(pair<int,int>(first, second));
             pcd = OpenMesh::vector_cast<OpenMesh::Vec3d>(t_it->second);
-            pcd /= tmp * pc.norm();
+            pcd /= tmp * pcd.norm();
             tangents.push_back(pcd);
         }
     }
@@ -134,7 +135,8 @@ bool Optimize::get_nlp_info(Ipopt::Index &n, Ipopt::Index &m,
     n = n_variables;
     m = n_constraints;
     nnz_jac_g = edges.size() * 6;
-    nnz_h_lag = EnergyVertices.size() * 18 + PositionConstraints.size() * 3 + edges.size() * 9;
+    nnz_h_lag = EnergyVertices.size() * 18 + PositionConstraints.size() * 3
+            + edges.size() * 9;
     index_style = Ipopt::TNLP::C_STYLE;
     return true;
 }
@@ -144,18 +146,6 @@ bool Optimize::get_bounds_info(Ipopt::Index n, Ipopt::Number *x_l, Ipopt::Number
 {
     assert(n == n_variables);
     assert(m == n_constraints);
-//    PointArrayEdit xl = x_l, xu = x_u;
-//    PetCurve::Point point;
-//    int n_points = vertices.size();
-//    for (int i  = 0; i < n_points; ++i)
-//    {
-//        point = curve->point(vertices[i]);
-////        xl(i,0) = point[0] - 0.1;
-////        xl(i,1) = point[1] - 0.1;
-////        xl(i,2) = point[2] - 0.1;
-////        xu(i,0) = point[0] + 0.1;
-////        xu(i,1) = point[1] + 0.1;
-////        xu(i,2) = point[2] + 0.1;
     for ( int i = 0; i < n; i++)
     {
         x_l[i] = -2e19;
@@ -181,11 +171,11 @@ bool Optimize::get_starting_point(Ipopt::Index n, bool init_x, Ipopt::Number *x,
     _unused(z_U);
     _unused(lambda);
     PointArrayEdit px = x;
-    PetCurve::Point point;
+    OpenMesh::Vec3d point;
     int n_points = vertices.size();
     for (int i  = 0; i < n_points; ++i)
     {
-        point = curve->point(vertices[i]);
+        point = OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(vertices[i]));
         px(i,0) = point[0];
         px(i,1) = point[1];
         px(i,2) = point[2];
@@ -215,6 +205,16 @@ bool Optimize::eval_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt:
         r += sqrnorm(t);
     }
     r *= pOp->PositionConstraintsWeight;
+    obj_value += r;
+    r = 0;
+    i = 0;
+    size = TangentConstraints.size();
+    for (; i < size; ++i)
+    {
+        computeTangentEdge(i, x, t);
+        r += 1 - dot(t, tangents[i].data());
+    }
+    r *= pOp->TangentConstraintsCoef;
     obj_value += r;
     return true;
 }
@@ -258,6 +258,18 @@ bool Optimize::eval_grad_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, I
         pV = positions[i].data();
         sub(px(idx), pV, t);
         multiplyByScaleTo(t, 2 * pOp->PositionConstraintsWeight, pf(idx));
+    }
+    i = 0;
+    size = TangentConstraints.size();
+    for (; i < size; ++i)
+    {
+        pV = tangents[i].data();
+        idx = TangentConstraints[i].first;
+        if (idx >= 0)
+            multiplyByScaleTo(pV, pOp->TangentConstraintsCoef, pf(idx));
+        idx = TangentConstraints[i].second;
+        if (idx >= 0)
+            multiplyByScaleTo(pV, -pOp->TangentConstraintsCoef, pf(idx));
     }
     return true;
 }
@@ -443,6 +455,8 @@ bool Optimize::eval_h(Ipopt::Index n, const Ipopt::Number *x,
     }
     else
     {
+        double tmp = 0;
+        setZeros(values, nele_hess);
         i = 0, size = edges.size();
         for (; i < size; i++)
         {
@@ -466,8 +480,6 @@ bool Optimize::eval_h(Ipopt::Index n, const Ipopt::Number *x,
                 }
             }
         }
-
-        Ipopt::Number tmp;
 
         i = 0;
         size = PositionConstraints.size();
@@ -519,10 +531,7 @@ bool Optimize::eval_h(Ipopt::Index n, const Ipopt::Number *x,
                 }
             }
         }
-        for (; idx < nele_hess; idx++)
-        {
-            values[idx] = 0;
-        }
+
     }
     assert(idx <= nele_hess);
 
@@ -535,6 +544,15 @@ void Optimize::finalize_solution(Ipopt::SolverReturn status, Ipopt::Index n, con
                                Ipopt::Number obj_value,
                                const Ipopt::IpoptData *ip_data, Ipopt::IpoptCalculatedQuantities *ip_cq)
 {
+    _unused(status);
+    _unused(z_L);
+    _unused(z_U);
+    _unused(m);
+    _unused(g);
+    _unused(lambda);
+    _unused(obj_value);
+    _unused(ip_data);
+    _unused(ip_cq);
     assert(n == int(vertices.size() * 3));
     int idx = 0, size = vertices.size();
     for (; idx < size; idx++)
@@ -586,7 +604,7 @@ Ipopt::Number Optimize::computeEdgeLength(int i, const Ipopt::Number *x)
     const Ipopt::Number *pv, *nv;
     pv = EdgePrevVertex(i, x);
     nv = EdgeNextVertex(i, x);
-    sub(pv, nv, e);
+    sub(nv, pv, e);
     return sqrnorm(e);
 }
 
@@ -608,6 +626,32 @@ const Ipopt::Number* Optimize::EdgeNextVertex(int i, const Ipopt::Number *x)
         return additionalPoints[-idx].data();
 }
 
+const Ipopt::Number* Optimize::TangentPrevVertex(int i, const Ipopt::Number *x)
+{
+    int idx = TangentConstraints[i].first;
+    if (idx >= 0)
+        return x + 3 * idx;
+    else
+        return additionalPoints[-idx].data();
+}
+
+const Ipopt::Number* Optimize::TangentNextVertex(int i, const Ipopt::Number *x)
+{
+    int idx = TangentConstraints[i].second;
+    if (idx >= 0)
+        return x + 3 * idx;
+    else
+        return additionalPoints[-idx].data();
+}
+
+void Optimize::computeTangentEdge(int i, const Ipopt::Number *x, Ipopt::Number* r)
+{
+    const Ipopt::Number* pv, *nv;
+    pv = TangentPrevVertex(i, x);
+    nv = TangentNextVertex(i, x);
+    sub(nv, pv, r);
+}
+
 inline void Optimize::setZeros(Ipopt::Number *r)
 {
     r[0] = r[1] = r[2] = 0;
@@ -615,8 +659,8 @@ inline void Optimize::setZeros(Ipopt::Number *r)
 
 inline void Optimize::setZeros(Ipopt::Number *r, int n)
 {
-    for (int i = 0; i < n; ++i)
-        r[i] = 0;
+    double tmp = 0;
+    cblas_dcopy(n, &tmp, 0, r, 1);
 }
 
 inline void Optimize::setValues(Ipopt::Number *r, Ipopt::Number v)
@@ -676,6 +720,11 @@ inline void Optimize::copy(const Ipopt::Number* src, Ipopt::Number* dst)
     dst[0] = src[0];
     dst[1] = src[1];
     dst[2] = src[2];
+}
+
+inline void copy(const Ipopt::Number* src, Ipopt::Number* dst, const Ipopt::Index n)
+{
+    cblas_dcopy(n, src, 1, dst, 1);
 }
 
 inline Ipopt::Number Optimize::dot(const Ipopt::Number* p, const Ipopt::Number* q)
@@ -740,11 +789,21 @@ inline void Optimize::multiplyByScale(const Ipopt::Number *x, Ipopt::Number dn, 
     r[2] = x[2] * dn;
 }
 
+inline void Optimize::multiplyByScale(Ipopt::Number *x, Ipopt::Number dn, int n)
+{
+    cblas_dscal(n, dn, x, 1);
+}
+
 inline void Optimize::multiplyByScaleTo(const Ipopt::Number *x, Ipopt::Number dn, Ipopt::Number *r)
 {
     r[0] += x[0] * dn;
     r[1] += x[1] * dn;
     r[2] += x[2] * dn;
+}
+
+inline void Optimize::multiplyByScaleTo(const Ipopt::Number *x, Ipopt::Number dn, Ipopt::Number *r, int n)
+{
+    cblas_daxpy(n, dn, x, 1, r, 1);
 }
 
 inline void Optimize::divideByScale(const Ipopt::Number *x, Ipopt::Number dn, Ipopt::Number *r)

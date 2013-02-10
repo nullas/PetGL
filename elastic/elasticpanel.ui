@@ -6,14 +6,14 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>434</width>
-    <height>511</height>
+    <width>392</width>
+    <height>592</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QGridLayout" name="gridLayout">
+  <layout class="QGridLayout" name="gridLayout_4">
    <item row="0" column="0">
     <widget class="QGroupBox" name="groupBox">
      <property name="title">
@@ -41,17 +41,24 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="1">
+      <item row="0" column="0">
+       <widget class="QPushButton" name="pushButton_wholeCurvesVertices">
+        <property name="text">
+         <string>whole curves' vertices</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
        <widget class="QPushButton" name="pushButton_VerticesFromCurves">
         <property name="text">
          <string>vertices from selected curve</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="0">
-       <widget class="QPushButton" name="pushButton_wholeCurvesVertices">
+      <item row="0" column="1">
+       <widget class="QPushButton" name="pushButton_wholeCurvesInteriorVertices">
         <property name="text">
-         <string>whole curves' vertices</string>
+         <string>whole curves' interior</string>
         </property>
        </widget>
       </item>
@@ -95,7 +102,76 @@
      <property name="title">
       <string>Optimize</string>
      </property>
-     <layout class="QGridLayout" name="gridLayout_5">
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="4" column="1">
+       <widget class="QPushButton" name="pushButton_test">
+        <property name="text">
+         <string>test it</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QDoubleSpinBox" name="doubleSpinBox_TangentConstraintsCoef">
+        <property name="decimals">
+         <number>1</number>
+        </property>
+        <property name="maximum">
+         <double>1000.000000000000000</double>
+        </property>
+        <property name="value">
+         <double>10.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QPushButton" name="pushButton_doitright">
+        <property name="text">
+         <string>do it right</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QPushButton" name="pushButton_setInvolved">
+        <property name="text">
+         <string>Set points to opt.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QPushButton" name="pushButton_optimize">
+        <property name="text">
+         <string>optimize</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Tangent Cont. Coef.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QDoubleSpinBox" name="doubleSpinBox_BendingEnergyCoef">
+        <property name="value">
+         <double>1.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_BendingEnergyCoef">
+        <property name="text">
+         <string>Beding Eerngy Coef</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_PositionConstraintsWeight">
+        <property name="text">
+         <string>Position Weight</string>
+        </property>
+       </widget>
+      </item>
       <item row="0" column="1">
        <widget class="QDoubleSpinBox" name="doubleSpinBox_PositionConstraintsWeight">
         <property name="decimals">
@@ -109,45 +185,10 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="label_PositionConstraintsWeight">
+      <item row="5" column="0">
+       <widget class="QPushButton" name="pushButton_exprotSelection">
         <property name="text">
-         <string>Position Weight</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QPushButton" name="pushButton_doitright">
-        <property name="text">
-         <string>do it right</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_BendingEnergyCoef">
-        <property name="text">
-         <string>Beding Eerngy Coef</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QDoubleSpinBox" name="doubleSpinBox_BendingEnergyCoef">
-        <property name="value">
-         <double>1.000000000000000</double>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="QPushButton" name="pushButton_test">
-        <property name="text">
-         <string>test it</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QPushButton" name="pushButton_setInvolved">
-        <property name="text">
-         <string>Set points and edges involved</string>
+         <string>export selection</string>
         </property>
        </widget>
       </item>

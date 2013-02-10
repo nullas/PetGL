@@ -18,6 +18,7 @@ struct PetTraits : public OpenMesh::DefaultTraits
     typedef OpenMesh::Vec3f Point;
     typedef OpenMesh::Vec3f Normal;
     typedef OpenMesh::Vec4f Color;
+    typedef float Scalar;
 
     VertexAttributes(OpenMesh::Attributes::Normal | OpenMesh::Attributes::Color);
     FaceAttributes(OpenMesh::Attributes::Status | OpenMesh::Attributes::Normal | OpenMesh::Attributes::Color);
@@ -37,6 +38,8 @@ public:
 
     virtual void init(bool isCurve = false);
 
+    virtual unsigned int v_n_edges() { return n_edges();}
+
     virtual bool iscurve();
 
     bool read_mesh(QString filename);
@@ -45,6 +48,7 @@ public:
     QString name;
     void SetName(QString m_name);
 
+    void computeScene();
     PetMesh::Scalar SceneRadius;
     PetMesh::Point SceneCenter;
 
@@ -77,9 +81,12 @@ public:
     virtual void updateVBO();
     virtual void createVBO();
     virtual void render();
+    virtual void drawPickEdges();
+    virtual void drawPickVertices();
 
     bool VBOcreated;
     int iSizeofidxFaces;
+    float PointSize;
 
     static const PetMesh::Color FaceColor, VertexColor, EdgeColor;
     static const PetMesh::Color SelectFaceColor, SelectVertexColor, SelectEdgeColor;

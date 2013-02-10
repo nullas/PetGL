@@ -6,6 +6,7 @@ const int Viewer::PickRadius = 10;
 Viewer::Viewer(QWidget* parent)
     : QGLViewer(parent)
 {
+    selecttype = 0;
 }
 
 
@@ -150,6 +151,18 @@ void Viewer::mousePressEvent(QMouseEvent* e)
   if (!actioned) QGLViewer::mousePressEvent(e);
 }
 
+void Viewer::keyPressEvent(QKeyEvent *e)
+{
+    // Defines the Alt+R shortcut.
+    if (e->key() == Qt::Key_Space)
+    {
+        selecttype = (selecttype + 1) % 2;
+        std::cout << (selecttype == 0 ? "vertex" : "edge") << std::endl;
+    }
+    else
+    QGLViewer::keyPressEvent(e);
+}
+
 void Viewer::Select(QMouseEvent* e)
 {
     PetMesh* mesh = qobject_cast<PetGL*>(this->parent())->getCurrentMesh();
@@ -157,62 +170,38 @@ void Viewer::Select(QMouseEvent* e)
     makeCurrent();
     this->camera()->loadProjectionMatrix();
     this->camera()->loadModelViewMatrix();
-    drawPickVertices();
-    pickVertices(e);
+    switch (selecttype)
+    {
+    case 0:
+        drawPickVertices();
+        pickVertices(e);
+        break;
+    case 1:
+        drawPickEdges();
+        pickEdges(e);
+        break;
+    }
     return;
 }
 void Viewer::drawPickVertices()
 {
     PetMesh* mesh = qobject_cast<PetGL*>(this->parent())->getCurrentMesh();
     if (mesh == NULL) return;
-    glPushAttrib(GL_LIGHTING_BIT);
-    glDisable(GL_LIGHTING);
-    glDisableClientState(GL_COLOR_ARRAY);
-    glDisableClientState(GL_NORMAL_ARRAY);
     QColor qcolor = backgroundColor();
     setBackgroundColor(Qt::white);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glColor3f(1.,1.,1.);
-    glBindBuffer(GL_ARRAY_BUFFER, mesh->bufferObjs[0]);
-    glVertexPointer(3, GL_FLOAT, 0, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->bufferObjs[2]);
-    glDrawElements(GL_POLYGON, mesh->iSizeofidxFaces + mesh->n_faces(), GL_UNSIGNED_INT, 0);
-    glEnableClientState(GL_COLOR_ARRAY);
-    glEnableClientState(GL_NORMAL_ARRAY);
-    unsigned int n_vertices = mesh->n_vertices();
-    unsigned char* pickColor = new unsigned char[4 * n_vertices];
-    unsigned char r=0,g=0,b=0;
-    long int i = 0, tmpidx;
-    PetMesh::VertexIter v_end(mesh->vertices_end());
-    for (PetMesh::VertexIter v_it = mesh->vertices_begin(); v_it != v_end; ++v_it)
-    {
-        tmpidx = v_it.handle().idx();
-        r =  tmpidx % 256;
-        tmpidx /= 256;
-        g = tmpidx % 256;
-        tmpidx /= 256;
-        b = tmpidx;
-        if (b == 255) return;
-
-        pickColor[i * 4] = r;
-        pickColor[i * 4 + 1] = g;
-        pickColor[i * 4 + 2] = b;
-        pickColor[i * 4 + 3] = 1;
-        ++i;
-    }
-    glBindBuffer(GL_ARRAY_BUFFER, mesh->bufferObjs[8]);
-    glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(unsigned char) * n_vertices, pickColor, GL_DYNAMIC_DRAW);
-    glColorPointer(4, GL_UNSIGNED_BYTE, 0, 0);
-
-    delete [] pickColor;
-
-    glBindBuffer(GL_ARRAY_BUFFER, mesh->bufferObjs[7]);
-    glVertexPointer(3, GL_FLOAT, 0, 0);
-    glPointSize(2.0);
-    glDrawArrays(GL_POINTS, 0, n_vertices);
-    glPopAttrib();
+    mesh->drawPickVertices();
     setBackgroundColor(qcolor);
 
+}
+
+void Viewer::drawPickEdges()
+{
+    PetMesh* mesh = qobject_cast<PetGL*>(this->parent())->getCurrentMesh();
+    QColor qcolor = backgroundColor();
+    setBackgroundColor(Qt::white);
+    if (mesh == NULL) return;
+    mesh->drawPickEdges();
+    setBackgroundColor(qcolor);
 }
 
 
@@ -246,9 +235,46 @@ void Viewer::pickVertices(QMouseEvent* e)
         jbase = 0;
     }
     if (idx >= n_vertices || idx == -1) return;
+    std::cout << idx << std::endl;
     mesh->set_color(mesh->vertex_handle(idx),PetMesh::SelectVertexColor);
     mesh->property(mesh->selectedVertex, mesh->vertex_handle(idx)) = true;
-    mesh->showVertices = true;
+    mesh->updateVBO();
+    updateGL();
+}
+
+
+void Viewer::pickEdges(QMouseEvent* e)
+{
+    PetMesh* mesh = qobject_cast<PetGL*>(this->parent())->getCurrentMesh();
+    if (mesh == NULL) return;
+    int screenheight = this->camera()->screenHeight();
+    int x = e->x(), y = screenheight - e->y();
+    if (x < PickRadius || y < PickRadius || x > screenheight - PickRadius || y > screenheight - PickRadius)
+        return;
+    unsigned int n_edges = mesh->n_edges();
+    unsigned char* m_Pick = new unsigned char[12 * PickRadius * PickRadius];
+    glReadPixels(x - PickRadius, y - PickRadius, 2 * PickRadius, 2 * PickRadius, GL_RGB,GL_UNSIGNED_BYTE, m_Pick);
+    long int idx = -1,tmpidx;
+    int base = 0, jbase = 0, radius = INT_MAX;
+    for (int i = -PickRadius; i < PickRadius; ++i)
+    {
+
+        for (int j = -PickRadius; j < PickRadius; ++j)
+            {
+            tmpidx = m_Pick[base + jbase] + m_Pick[base + jbase + 1] * 256 + m_Pick[base + jbase + 2] * 65536;
+            if(tmpidx < n_edges && i * i + j * j < radius)
+            {
+                idx = tmpidx;
+                radius = i * i + j * j;
+            }
+            jbase += 3;
+        }
+        base += 6 * PickRadius;
+        jbase = 0;
+    }
+    if (idx >= n_edges || idx == -1) return;
+    std::cout << idx << std::endl;
+    mesh->setEdgeSelected(idx);
     mesh->updateVBO();
     updateGL();
 }
@@ -261,10 +287,19 @@ void Viewer::Deselect(QMouseEvent* e)
     makeCurrent();
     this->camera()->loadProjectionMatrix();
     this->camera()->loadModelViewMatrix();
-    drawPickVertices();
-    unpickVertices(e);
-    return;
+    switch (selecttype)
+    {
+    case 0:
+        drawPickVertices();
+        unpickVertices(e);
+        break;
+    case 1:
+        drawPickEdges();
+        unpickEdges(e);
+        break;
 
+    }
+    return;
 }
 
 void Viewer::unpickVertices(QMouseEvent* e)
@@ -299,10 +334,43 @@ void Viewer::unpickVertices(QMouseEvent* e)
     if (idx >= n_vertices || idx == -1) return;
     mesh->set_color(mesh->vertex_handle(idx),PetMesh::VertexColor);
     mesh->property(mesh->selectedVertex, mesh->vertex_handle(idx)) = false;
-    mesh->showVertices = true;
     mesh->updateVBO();
     updateGL();
 }
 
+void Viewer::unpickEdges(QMouseEvent* e)
+{
+    PetMesh* mesh = qobject_cast<PetGL*>(this->parent())->getCurrentMesh();
+    if (mesh == NULL) return;
+    int screenheight = this->camera()->screenHeight();
+    int x = e->x(), y = screenheight - e->y();
+    if (x < PickRadius || y < PickRadius || x > screenheight - PickRadius || y > screenheight - PickRadius)
+        return;
+    unsigned int n_edges = mesh->n_edges();
+    unsigned char* m_Pick = new unsigned char[12 * PickRadius * PickRadius];
+    glReadPixels(x - PickRadius, y - PickRadius, 2 * PickRadius, 2 * PickRadius, GL_RGB,GL_UNSIGNED_BYTE, m_Pick);
+    long int idx = -1,tmpidx;
+    int base = 0, jbase = 0, radius = INT_MAX;
+    for (int i = -PickRadius; i < PickRadius; ++i)
+    {
+
+        for (int j = -PickRadius; j < PickRadius; ++j)
+            {
+            tmpidx = m_Pick[base + jbase] + m_Pick[base + jbase + 1] * 256 + m_Pick[base + jbase + 2] * 65536;
+            if(tmpidx < n_edges && i * i + j * j < radius)
+            {
+                idx = tmpidx;
+                radius = i * i + j * j;
+            }
+            jbase += 3;
+        }
+        base += 6 * PickRadius;
+        jbase = 0;
+    }
+    if (idx >= n_edges || idx == -1) return;
+    mesh->setEdgeUnselected(idx);
+    mesh->updateVBO();
+    updateGL();
+}
 
 

@@ -32,12 +32,17 @@ public:
   void Select(QMouseEvent*);
   void Deselect(QMouseEvent*);
   void drawPickVertices();
-  void pickVertices(QMouseEvent*);
+  void pickVertices(QMouseEvent* e);
   void unpickVertices(QMouseEvent*);
+  void drawPickEdges();
+  void pickEdges(QMouseEvent* e);
+  void unpickEdges(QMouseEvent* e);
 protected:
   virtual void mousePressEvent(QMouseEvent* e);
+  virtual void keyPressEvent(QKeyEvent *e);
 private:
   static const int PickRadius;
+  int selecttype;
 }; // end class Viewer
 
 #endif // VIEWER_H

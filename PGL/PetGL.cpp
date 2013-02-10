@@ -12,6 +12,7 @@
 #include <QApplication>
 #include <QPluginLoader>
 #include <QTabWidget>
+ #include <QTreeWidgetItemIterator>
 
 #include "PetGL.h"
 #include "PetMesh.h"
@@ -185,6 +186,8 @@ void PetGL::on_actionLoad_curve_triggered()
 }
 
 
+
+
 void PetGL::toggleDrawProperties(QWidget* item)
 {
     QTreeWidgetItem *chkItem = (QTreeWidgetItem *) item;
@@ -237,6 +240,7 @@ void PetGL::focusPet()
     QTreeWidgetItem *item = this->ui->MeshLists->currentItem();
     PetMesh *mesh;
     mesh = static_cast<PetMesh *>(item->data(0,Qt::UserRole).value<void *>());
+    mesh->computeScene();
     this->ui->MainViewer->setSceneRadius(mesh->SceneRadius);
     qglviewer::Vec center;
     center.setValue(mesh->SceneCenter[0],mesh->SceneCenter[1],mesh->SceneCenter[2]);
@@ -251,6 +255,21 @@ PetMesh* PetGL::getCurrentMesh()
     PetMesh *mesh;
     mesh = static_cast<PetMesh *>(item->data(0,Qt::UserRole).value<void *>());
     return mesh;
+}
+
+bool PetGL::setCurrentMesh(PetMesh* mesh)
+{
+    QTreeWidgetItemIterator it(ui->MeshLists);
+    while (*it)
+    {
+        if (mesh == static_cast<PetMesh *>((*it)->data(0,Qt::UserRole).value<void *>()))
+        {
+         ui->MeshLists->setCurrentItem(*it);
+         return true;
+        }
+        ++it;
+    }
+    return false;
 }
 
 void PetGL::updateView(int level)
