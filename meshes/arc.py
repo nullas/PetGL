@@ -8,7 +8,7 @@ beta = 0.05
 L = 10
 p0 = np.r_[-1,0]
 p1 = np.r_[+1,0]
-M = 30
+M = 300
 mL = 100
 w = p1 - p0
 l = np.linalg.norm(p1 - p0)
@@ -47,18 +47,16 @@ fp = open('arc.ply','w')
 fp.write('''ply
 format ascii 1.0
 comment made by Xin\n''')
-n_vertices = M + 2
+n_vertices = M
 fp.write('element vertex {0}\n'.format(n_vertices))
-fp.write('''property float32 x
-property float32 y
-property float32 z\n''')
+fp.write('''property float64 x
+property float64 y
+property float64 z\n''')
 fp.write('element face {0}\n'.format(1))
 fp.write('property list uint8 int32 vertex_index\n')
 fp.write('end_header\n')
 for i in xrange(M):
     fp.write('{0} {1} {2}\n'.format(x[i], y[i], 0))
-fp.write('{0} {1} {2}\n'.format(z0[0],z0[1],0))
-fp.write('{0} {1} {2}\n'.format(z1[0],z1[1],0))
 fp.write('{0}'.format(M))
 for i in xrange(M):
     fp.write(' {0}'.format(i))

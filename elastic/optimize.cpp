@@ -27,7 +27,7 @@ Optimize::Optimize(Elastic* p) : pElastic(p), vertices(p->verticesToOptimize)
     std::set<PetCurve::VertexHandle>::const_iterator v_hnd_end = setvertices.end();
     PetCurve::CurveIter c_it = curve->faces_begin(), c_end = curve->faces_end();
     int first, second;
-    OpenMesh::Vec3d p0, p1, pc;
+    Point p0, p1, pc;
     PetCurve::CurveHalfedgeIter ch_it;
     PetCurve::HalfedgeHandle tmp_e_hnd;
     for (; c_it != c_end; ++c_it)
@@ -40,8 +40,8 @@ Optimize::Optimize(Elastic* p) : pElastic(p), vertices(p->verticesToOptimize)
 
             if (setvertices.find(v0_hnd) != v_hnd_end || setvertices.find(v_hnd) != v_hnd_end)
             {
-                p0 = OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(v0_hnd));
-                pc = OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(v_hnd));
+                p0 = curve->point(v0_hnd);
+                pc = curve->point(v_hnd);
                 edges.push_back(curve->edge_handle(ch_it.handle()));
                 first = insertAdditionalPoint(v0_hnd);
                 second = insertAdditionalPoint(v_hnd);
@@ -54,9 +54,9 @@ Optimize::Optimize(Elastic* p) : pElastic(p), vertices(p->verticesToOptimize)
             if (setvertices.find(v0_hnd) != v_hnd_end || setvertices.find(v_hnd) != v_hnd_end
                     || setvertices.find(v1_hnd) != v_hnd_end)
             {
-                p0 = OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(v0_hnd));
-                pc = OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(v_hnd));
-                p1 = OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(v1_hnd));
+                p0 = curve->point(v0_hnd);
+                pc = curve->point(v_hnd);
+                p1 = curve->point(v1_hnd);
                 EnergyVertices.push_back(v_hnd);
                 i = insertAdditionalPoint(v0_hnd);
                 idxPrevVertex.push_back(i);
@@ -77,11 +77,11 @@ Optimize::Optimize(Elastic* p) : pElastic(p), vertices(p->verticesToOptimize)
     {
         if (idxMapping.count((*p_it).first) && idxMapping[(*p_it).first] >= 0)
         {
-            positions.push_back(OpenMesh::vector_cast<OpenMesh::Vec3d>((*p_it).second));
+            positions.push_back((*p_it).second);
             PositionConstraints.push_back(idxMapping[(*p_it).first]);
         }
     }
-    OpenMesh::Vec3d p0d, p1d, pcd;
+    Point p0d, p1d, pcd;
     std::vector<pair<PetCurve::EdgeHandle, PetCurve::Point> >::const_iterator t_it = p->TangentConstraints.begin(),
             t_it_end = p->TangentConstraints.end();
     for (; t_it != t_it_end; ++t_it)
@@ -93,11 +93,11 @@ Optimize::Optimize(Elastic* p) : pElastic(p), vertices(p->verticesToOptimize)
         {
             first = insertAdditionalPoint(v0_hnd);
             second = insertAdditionalPoint(v1_hnd);
-            p0d = OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(v0_hnd));
-            p1d = OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(v1_hnd));
+            p0d = curve->point(v0_hnd);
+            p1d = curve->point(v1_hnd);
             tmp = (p1d - p0d).norm();
             TangentConstraints.push_back(pair<int,int>(first, second));
-            pcd = OpenMesh::vector_cast<OpenMesh::Vec3d>(t_it->second);
+            pcd = t_it->second;
             pcd /= tmp * pcd.norm();
             tangents.push_back(pcd);
         }
@@ -123,7 +123,7 @@ int Optimize::insertAdditionalPoint(const PetCurve::VertexHandle &v_hnd)
     {
         int i = -additionalPoints.size();
         idxMapping.insert(std::map<PetCurve::VertexHandle, int>::value_type(v_hnd,i));
-        additionalPoints.push_back(OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(v_hnd)));
+        additionalPoints.push_back(curve->point(v_hnd));
         return i;
     }
 }
@@ -171,11 +171,11 @@ bool Optimize::get_starting_point(Ipopt::Index n, bool init_x, Ipopt::Number *x,
     _unused(z_U);
     _unused(lambda);
     PointArrayEdit px = x;
-    OpenMesh::Vec3d point;
+    Point point;
     int n_points = vertices.size();
     for (int i  = 0; i < n_points; ++i)
     {
-        point = OpenMesh::vector_cast<OpenMesh::Vec3d>(curve->point(vertices[i]));
+        point = curve->point(vertices[i]);
         px(i,0) = point[0];
         px(i,1) = point[1];
         px(i,2) = point[2];

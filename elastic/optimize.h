@@ -36,7 +36,7 @@ public:
         T* p;
     };
     typedef PointArrayEdit_t<Ipopt::Number> PointArrayEdit;
-
+    typedef OpenMesh::Vec3d Point;
 
     Optimize(Elastic* p);
     ~Optimize();

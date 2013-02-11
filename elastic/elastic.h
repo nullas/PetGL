@@ -40,8 +40,8 @@ public:
     std::vector<PetCurve::EdgeHandle> edgesToOptimize;
     std::vector<PetCurve::VertexHandle> verticesToOptimize;
 
-    std::vector<pair<PetCurve::VertexHandle, PetCurve::Point> > PositionConstraints;
-    std::vector<pair<PetCurve::EdgeHandle, PetCurve::Point> > TangentConstraints;
+    std::vector<pair<PetCurve::VertexHandle, Point> > PositionConstraints;
+    std::vector<pair<PetCurve::EdgeHandle, Point> > TangentConstraints;
 
     PetCurve* curveToOptimize;
 
@@ -90,6 +90,8 @@ private slots:
 
     void on_pushButton_exprotSelection_clicked();
 
+    void on_pushButton_clear_clicked();
+
 public:
     PetGL* pgl;
     QWidget* tabPluginWidget;
@@ -114,11 +116,6 @@ public:
                                        const Point& q0,
                                        const Point& q1);
 
-    bool LineSegmentsCollide(const PetMesh::Point& p0,
-                             const PetMesh::Point& p1,
-                             const PetMesh::Point& q0,
-                             const PetMesh::Point& q1);
-
     bool LineSegmentsCollide(const unsigned int, const unsigned int);
 
     bool LineSegmentsCollide(const PetCurve::EdgeHandle i, const PetCurve::EdgeHandle j);
@@ -133,11 +130,6 @@ public:
                                        const Point& p1,
                                        const Point& q0,
                                        const Point& q1);
-
-    double LineSegmentsDistance(const PetMesh::Point& p0,
-                                const PetMesh::Point& p1,
-                                const PetMesh::Point& q0,
-                                const PetMesh::Point& q1);
 
     double LineSegmentsDistance(const unsigned int i, const unsigned int j);
 

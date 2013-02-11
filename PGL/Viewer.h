@@ -28,7 +28,6 @@ public:
   void draw();
   void init();
 
-  void drawMesh(PetMesh& petMesh);
   void Select(QMouseEvent*);
   void Deselect(QMouseEvent*);
   void drawPickVertices();

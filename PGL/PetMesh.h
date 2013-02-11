@@ -15,10 +15,9 @@
 
 struct PetTraits : public OpenMesh::DefaultTraits
 {
-    typedef OpenMesh::Vec3f Point;
+    typedef OpenMesh::Vec3d Point;
     typedef OpenMesh::Vec3f Normal;
     typedef OpenMesh::Vec4f Color;
-    typedef float Scalar;
 
     VertexAttributes(OpenMesh::Attributes::Normal | OpenMesh::Attributes::Color);
     FaceAttributes(OpenMesh::Attributes::Status | OpenMesh::Attributes::Normal | OpenMesh::Attributes::Color);

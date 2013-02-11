@@ -78,6 +78,8 @@ void Elastic::setupTabWidget()
             this, SLOT(on_pushButton_optimize_clicked()));
     connect(ui->pushButton_exprotSelection,SIGNAL(clicked()),
             this, SLOT(on_pushButton_exprotSelection_clicked()));
+    connect(ui->pushButton_clear, SIGNAL(clicked()),
+            this, SLOT(on_pushButton_clear_clicked()));
 
     r = ui->doubleSpinBox_collisionradius->value();
     pO.PositionConstraintsWeight = ui->doubleSpinBox_PositionConstraintsWeight->value();
@@ -139,16 +141,6 @@ bool Elastic::LineSegmentsCollide(const Point& p1,
         return false;
 }
 
-bool Elastic::LineSegmentsCollide(const PetMesh::Point& p1,
-                         const PetMesh::Point& p2,
-                         const PetMesh::Point& q1,
-                         const PetMesh::Point& q2)
-{
-    return LineSegmentsCollide(OpenMesh::vector_cast<Point>(p1),
-                        OpenMesh::vector_cast<Point>(p2),
-                        OpenMesh::vector_cast<Point>(q1),
-                        OpenMesh::vector_cast<Point>(q2));
-}
 
 
 bool Elastic::getCurrentCurve()
@@ -295,16 +287,6 @@ double Elastic::LineSegmentsDistance(const Point &p0, const Point &p1, const Poi
     return sqrt(d);
 }
 
-double Elastic::LineSegmentsDistance(const PetMesh::Point& p0,
-                                     const PetMesh::Point& p1,
-                                     const PetMesh::Point& q0,
-                                     const PetMesh::Point& q1)
-{
-    return LineSegmentsDistance(OpenMesh::vector_cast<Point>(p0),
-                        OpenMesh::vector_cast<Point>(p1),
-                        OpenMesh::vector_cast<Point>(q0),
-                        OpenMesh::vector_cast<Point>(q1));
-}
 
 double Elastic::LineSegmentsDistance(const unsigned int i, const unsigned int j)
 {
@@ -501,7 +483,7 @@ void Elastic::on_pushButton_doitright_clicked()
         fin >> cType;
     }
 
-    float x, y, z;
+    Point::value_type x, y, z;
     PositionConstraints.clear();
     TangentConstraints.clear();
     verticesToOptimize.clear();
@@ -515,18 +497,18 @@ void Elastic::on_pushButton_doitright_clicked()
             for (int i = 0; i < (*it).second; ++i)
             {
                 fin >> idx >> x >> y >> z;
-                PositionConstraints.push_back(pair<PetCurve::VertexHandle, PetCurve::Point>
+                PositionConstraints.push_back(pair<PetCurve::VertexHandle, Point>
                                               (curveToOptimize->vertex_handle(idx),
-                                               PetCurve::Point(x,y,z)));
+                                               Point(x,y,z)));
             }
             break;
         case 'T':
             for (int i = 0; i < (*it).second; ++i)
             {
                 fin >> idx >> x >> y >> z;
-                TangentConstraints.push_back(pair<PetCurve::EdgeHandle, PetCurve::Point>
+                TangentConstraints.push_back(pair<PetCurve::EdgeHandle, Point>
                                              (curveToOptimize->edge_handle(idx),
-                                              PetCurve::Point(x,y,z)));
+                                              Point(x,y,z)));
             }
             break;
         case 'V':
@@ -547,7 +529,7 @@ void Elastic::on_pushButton_doitright_clicked()
     app->Options()->SetNumericValue("tol", 1e-7);
     app->Options()->SetStringValue("mu_strategy", "adaptive");
     app->Options()->SetStringValue("output_file", "ipopt.out");
-    app->Options()->SetStringValue("derivative_test","second-order");
+//    app->Options()->SetStringValue("derivative_test","second-order");
 //    app->Options()->SetStringValue("linear_solver","ma57");
 
     Ipopt::ApplicationReturnStatus status;
@@ -677,7 +659,7 @@ void Elastic::on_pushButton_optimize_clicked()
     app->Options()->SetNumericValue("tol", 1e-9);
     app->Options()->SetStringValue("mu_strategy", "adaptive");
     app->Options()->SetStringValue("output_file", "ipopt.out");
-    app->Options()->SetStringValue("derivative_test","second-order");
+//    app->Options()->SetStringValue("derivative_test","second-order");
 //    app->Options()->SetNumericValue("derivative_test_perturbation", 1e-8);
 //    app->Options()->SetStringValue("linear_solver","ma57");
     Ipopt::ApplicationReturnStatus status;
@@ -746,4 +728,11 @@ void Elastic::on_pushButton_exprotSelection_clicked()
         fout << idxEdges[i] << " " << std::endl;
     }
     fout.close();
+}
+
+void Elastic::on_pushButton_clear_clicked()
+{
+    verticesToOptimize.clear();
+    TangentConstraints.clear();
+    PositionConstraints.clear();
 }
