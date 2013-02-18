@@ -50,6 +50,8 @@ public:
         double BendingEnergyCoef;
         double PositionConstraintsWeight;
         double TangentConstraintsCoef;
+        double r;
+        int extension;
     }pOptimize;
 
     pOptimize pO;
@@ -91,6 +93,8 @@ private slots:
     void on_pushButton_exprotSelection_clicked();
 
     void on_pushButton_clear_clicked();
+
+    void on_spinBox_extension_editingFinished();
 
 public:
     PetGL* pgl;

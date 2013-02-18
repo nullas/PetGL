@@ -12,7 +12,7 @@
 
 using namespace std;
 
-const PetMesh::Color PetMesh::SelectEdgeColor = OpenMesh::color_cast<PetMesh::Color>(OpenMesh::Vec4uc(20,20,20,255));
+const PetMesh::Color PetMesh::SelectEdgeColor = OpenMesh::color_cast<PetMesh::Color>(OpenMesh::Vec4uc(251,145,6,255));
 const PetMesh::Color PetMesh::SelectVertexColor = OpenMesh::color_cast<PetMesh::Color>(OpenMesh::Vec4uc(220,87,18,255));
 const PetMesh::Color PetMesh::SelectFaceColor = OpenMesh::color_cast<PetMesh::Color>(OpenMesh::Vec4uc(17,64,108,255));
 const PetMesh::Color PetMesh::EdgeColor= OpenMesh::color_cast<PetMesh::Color>(OpenMesh::Vec4uc(36,169,225,255));

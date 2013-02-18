@@ -2,6 +2,7 @@
 #define OPTIMIZE_H
 
 #include <set>
+#include <deque>
 #include <coin/IpTNLP.hpp>
 
 #include "elastic.h"
@@ -77,6 +78,8 @@ public:
     void computeTangentEdge(int i, const Ipopt::Number *x, Ipopt::Number* r);
     void computeEdge(int i, const Ipopt::Number *x, Ipopt::Number *r);
 
+    PetCurve::Point getPoint(int i, const double* x);
+
     inline void cross(const Ipopt::Number* p, const Ipopt::Number* q, Ipopt::Number* r);
     inline void add(const Ipopt::Number* p, const Ipopt::Number* q, Ipopt::Number* r);
     inline void sub(const Ipopt::Number* p, const Ipopt::Number* q, Ipopt::Number* r);
@@ -93,10 +96,24 @@ public:
     inline void setZeros(Ipopt::Number *r);
     inline void setZeros(Ipopt::Number *r, int n);
     inline void setValues(Ipopt::Number *r, Ipopt::Number v);
+    void crossNormal(const double* p0,
+                     const double* p1,
+                     const double* q0,
+                     const double* q1,
+                     double* r);
+    void crossDiag(const double* p0,
+                   const double* p1,
+                   const double* q0,
+                   const double* q1,
+                   double* r);
     void setHessianPos(const int i, const int j,
-                                    Ipopt::Index* iRow,Ipopt::Index* iCol,
+                                    Ipopt::Index* iRow,Ipopt::Index* jCol,
                                     int& idx);
     inline void setHessianValues(int& idx, Ipopt::Number* x, const Ipopt::Number v);
+    void setHessianPos_SkewSym(const int i, const int j, Ipopt::Index* iRow,Ipopt::Index* jCol, int& idx);
+    void setHessianValues_SkewSym(const int i, const int row, const int col,
+                                  Ipopt::Number *values, int& idx, const double *x, double weight);
+    void setHessianValues_SkewSym_helper(const Point& p, Ipopt::Number *values, int& idx);
 
     void computeEF(const int i, const Ipopt::Number *x, Ipopt::Number *e, Ipopt::Number *f);
 
@@ -107,6 +124,56 @@ public:
     inline const Ipopt::Number* prevVertices(const int i, const Ipopt::Number *x);
     inline const Ipopt::Number* theVertices(const int i, const Ipopt::Number *x);
     inline const Ipopt::Number* nextVertices(const int i, const Ipopt::Number *x);
+
+
+    //edges intersection
+    //fast collision detection to filter out line segments far away.
+    bool LineSegmentsCollide(const Point& p0,
+                                       const Point& p1,
+                                       const Point& q0,
+                                       const Point& q1);
+
+    bool LineSegmentsCollide(const PetCurve::HalfedgeHandle& i, const PetCurve::HalfedgeHandle& j);
+
+    //Line segments distance
+    double LineSegmentsSqDistance(const Point& p0,
+                                       const Point& p1,
+                                       const Point& q0,
+                                       const Point& q1);
+
+    double LineSegmentsSqDistance(const int p0,
+                                       const int p1,
+                                       const int q0,
+                                       const int q1,
+                                  const double* x);
+
+    double LineSegmentsSqDistance(const PetCurve::HalfedgeHandle& he_i, const PetCurve::HalfedgeHandle& he_j);
+
+    double LineSegmentsSqDistance(const int idx, const int ref_i, const int ref_j, const double* x);
+
+    double LineSegmentsDistance(const Point& p0,
+                                       const Point& p1,
+                                       const Point& q0,
+                                       const Point& q1);
+
+    double LineSegmentsDistance(const PetCurve::EdgeHandle, const PetCurve::EdgeHandle);
+
+    double CrossLineSegmentsDistance(const Point& p0,
+                                     const Point& p1,
+                                     const Point& q0,
+                                     const Point& q1);
+
+    void EdgesIntersections();
+
+    bool updateCross(const double* x);
+
+    double computeCrossDiagDistance(const int i, const double* x);
+
+    void setJacGPos_cross(const int ref, const int base, const int i, int& idx, int* iRow, int* jCol);
+
+    void setJacGVal_cross(const int ref, const int i, int& idx, double *values, const double *x);
+
+    Point JacG_cross(const int idx_cross, int vertexposition, const double* x);
 
 private:
     Elastic* pElastic;
@@ -128,6 +195,13 @@ private:
     std::vector<OpenMesh::Vec3d> additionalPoints;
     int insertAdditionalPoint(const PetCurve::VertexHandle& v_hnd);
     std::vector<OpenMesh::Vec3d> positions;
+
+    //for crossing
+    std::vector<std::pair<PetCurve::HalfedgeHandle, PetCurve::HalfedgeHandle> > crosses;
+    std::vector<deque<int> > crossE;
+    std::vector<deque<int> > crossF;
+    std::vector<pair<int, int> > crossRef;
+    int refSize;
 };
 
 #endif // OPTIMIZE_H

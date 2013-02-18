@@ -70,6 +70,8 @@ void Elastic::setupTabWidget()
             this,SLOT(on_doubleSpinBox_PositionConstraintsWeight_editingFinished()));
     connect(ui->doubleSpinBox_TangentConstraintsCoef, SIGNAL(editingFinished()),
             this, SLOT(on_doubleSpinBox_TangentConstraintsCoef_editingFinished()));
+    connect(ui->spinBox_extension, SIGNAL(editingFinished()),
+            this, SLOT(on_spinBox_extension_editingFinished()));
     connect(ui->pushButton_test, SIGNAL(clicked()),
             this, SLOT(on_pushButton_test_clicked()));
     connect(ui->pushButton_wholeCurvesInteriorVertices, SIGNAL(clicked()),
@@ -81,10 +83,13 @@ void Elastic::setupTabWidget()
     connect(ui->pushButton_clear, SIGNAL(clicked()),
             this, SLOT(on_pushButton_clear_clicked()));
 
+
     r = ui->doubleSpinBox_collisionradius->value();
+    pO.r = r;
     pO.PositionConstraintsWeight = ui->doubleSpinBox_PositionConstraintsWeight->value();
     pO.BendingEnergyCoef = ui->doubleSpinBox_BendingEnergyCoef->value();
     pO.TangentConstraintsCoef = ui->doubleSpinBox_TangentConstraintsCoef->value();
+    pO.extension = ui->spinBox_extension->value();
 }
 
 
@@ -187,6 +192,7 @@ bool Elastic::LineSegmentsCollide(const PetCurve::EdgeHandle i, const PetCurve::
 void Elastic::on_doubleSpinBox_collisionradius_valueChanged(double d)
 {
     r = d;
+    pO.r = r;
 }
 
 double Elastic::LineSegmentsSqDistance(const Point &p0, const Point &p1, const Point &q0, const Point &q1)
@@ -735,4 +741,9 @@ void Elastic::on_pushButton_clear_clicked()
     verticesToOptimize.clear();
     TangentConstraints.clear();
     PositionConstraints.clear();
+}
+
+void Elastic::on_spinBox_extension_editingFinished()
+{
+    pO.extension = ui->spinBox_extension->value();
 }

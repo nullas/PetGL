@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cblas.h>
+#include <limits>
 
 #define _unused(x) ((void)x)
 #define Mep 1e-8
@@ -64,7 +65,7 @@ Optimize::Optimize(Elastic* p) : pElastic(p), vertices(p->verticesToOptimize)
                 idxTheVertex.push_back(i);
                 i = insertAdditionalPoint(v1_hnd);
                 idxNextVertex.push_back(i);
-                VerticesWeight.push_back(2./((p0 - pc).norm() + (p1 - pc).norm()));
+                VerticesWeight.push_back(((p0 - pc).norm() + (p1 - pc).norm())/2);
                 EdgesLengthProduct.push_back( (p0 - pc).norm() * (p1 - pc).norm());
             }
 
@@ -102,7 +103,8 @@ Optimize::Optimize(Elastic* p) : pElastic(p), vertices(p->verticesToOptimize)
             tangents.push_back(pcd);
         }
     }
-    n_constraints = edges.size();
+    EdgesIntersections();
+    n_constraints = edges.size() + crosses.size();
 }
 
 
@@ -134,9 +136,13 @@ bool Optimize::get_nlp_info(Ipopt::Index &n, Ipopt::Index &m,
 {
     n = n_variables;
     m = n_constraints;
-    nnz_jac_g = edges.size() * 6;
+    int tmp = 12 * (1 + pOp->extension);
+    nnz_jac_g = edges.size() * 6 + crosses.size()  * tmp;
+//    tmp = 4 * (1 + pOp->extension);
+//    tmp = 3 * tmp * (tmp - 1);
+    tmp = 12 * (refSize - 2) + (refSize - 1) * (refSize - 1) * 6;
     nnz_h_lag = EnergyVertices.size() * 18 + PositionConstraints.size() * 3
-            + edges.size() * 9;
+            + edges.size() * 9 + crosses.size() * tmp;
     index_style = Ipopt::TNLP::C_STYLE;
     return true;
 }
@@ -151,9 +157,16 @@ bool Optimize::get_bounds_info(Ipopt::Index n, Ipopt::Number *x_l, Ipopt::Number
         x_l[i] = -2e19;
         x_u[i] =  2e19;
     }
-    for (int i = 0; i < n_constraints; ++i)
+    int end = edges.size();
+    for (int i = 0; i < end; ++i)
     {
         g_l[i] = g_u[i] = edgesSqLength[i];
+    }
+    end = edges.size() + crosses.size();
+    for (int i = edges.size(); i < end; ++i)
+    {
+        g_l[i] = 0;
+        g_u[i] = 0;
     }
     return true;
 }
@@ -186,7 +199,7 @@ bool Optimize::get_starting_point(Ipopt::Index n, bool init_x, Ipopt::Number *x,
 bool Optimize::eval_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt::Number &obj_value)
 {
     _unused(n);
-    _unused(new_x);
+    if (new_x && !updateCross(x)) return false;
     obj_value = 0;
     PointArray px = PointArray(x);
     Ipopt::Number t[3];
@@ -194,7 +207,7 @@ bool Optimize::eval_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt:
     int i = 0, size = EnergyVertices.size();
     for (; i < size; i++)
     {
-        obj_value += computeSqK(i, x) * VerticesWeight[i];
+        obj_value += computeSqK(i, x) / VerticesWeight[i];
     }
     obj_value *= pOp->BendingEnergyCoef;
     i = 0;
@@ -222,7 +235,7 @@ bool Optimize::eval_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt:
 bool Optimize::eval_grad_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt::Number *grad_f)
 {
     assert(n == n_variables);
-    _unused(new_x);
+    if (new_x && !updateCross(x)) return false;
     Ipopt::Number t1[3], t2[3], t[3], e[3], f[3], tmp;
     Ipopt::Number* pV;
     PointArrayEdit pf = grad_f;
@@ -232,7 +245,7 @@ bool Optimize::eval_grad_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, I
     int i = 0, size = EnergyVertices.size();
     for (; i < size; i++)
     {
-        tmp = pOp->BendingEnergyCoef * VerticesWeight[i] / EdgesLengthProduct[i];
+        tmp = pOp->BendingEnergyCoef / VerticesWeight[i] / EdgesLengthProduct[i];
         computeEF(i, x, e, f);
         idx = idxPrevVertex[i];
         multiplyByScale(f, tmp, t1);
@@ -278,10 +291,16 @@ bool Optimize::eval_g(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt:
 {
     _unused(n);
     _unused(m);
-    _unused(new_x);
+    if (new_x && !updateCross(x)) return false;
     int i = 0, size = edges.size();
     for (; i < size; i++)
         g[i] = computeEdgeLength(i, x);
+    i = size;
+    int end = edges.size() + crosses.size();
+    for (; i < end; ++i)
+    {
+        g[i] = computeCrossDiagDistance(i - size, x);
+    }
     return true;
 }
 
@@ -291,7 +310,7 @@ bool Optimize::eval_jac_g(Ipopt::Index n, const Ipopt::Number *x, bool new_x,
 {
     _unused(n);
     _unused(m);
-    _unused(new_x);
+    if (new_x && !updateCross(x)) return false;
     Ipopt::Number e[3];
     int idx_nv, idx_pv;
     int idx = 0;
@@ -324,6 +343,16 @@ bool Optimize::eval_jac_g(Ipopt::Index n, const Ipopt::Number *x, bool new_x,
                 idx += 3;
             }
         }
+        int ref;
+        int end = crosses.size();
+        i = 0;
+        for (; i < end; ++i)
+        {
+            for (ref = 1; ref < refSize; ++ref)
+            {
+                setJacGPos_cross(ref, size, i, idx, iRow, jCol);
+            }
+        }
         for (; idx < nele_jac; idx++)
         {
             iRow[idx] = 0;
@@ -332,6 +361,7 @@ bool Optimize::eval_jac_g(Ipopt::Index n, const Ipopt::Number *x, bool new_x,
     }
     else
     {
+        setZeros(values, nele_jac);
         int i = 0, size = edges.size();
         for (; i < size; i++)
         {
@@ -349,9 +379,15 @@ bool Optimize::eval_jac_g(Ipopt::Index n, const Ipopt::Number *x, bool new_x,
                 idx += 3;
             }
         }
-        for (; idx < nele_jac; idx++)
+        int ref;
+        int end = crosses.size();
+        i = 0;
+        for (; i < end; ++i)
         {
-            values[idx] = 0;
+            for (ref = 1; ref < refSize; ++ref)
+            {
+                setJacGVal_cross(ref, i, idx, values, x);
+            }
         }
     }
     assert(idx <= nele_jac);
@@ -366,8 +402,8 @@ bool Optimize::eval_h(Ipopt::Index n, const Ipopt::Number *x,
 {
     _unused(n);
     _unused(m);
-    _unused(new_x);
     _unused(new_lambda);
+    if (new_x && !updateCross(x)) return false;
     int idx_pv, idx_nv, idx_cv;
     Ipopt::Number e[3];
     int idx = 0;
@@ -447,6 +483,45 @@ bool Optimize::eval_h(Ipopt::Index n, const Ipopt::Number *x,
                 }
             }
         }
+        int ref_E, ref_F, p, q;
+        i = 0;
+        size = crosses.size();
+        for (; i < size; ++i)
+        {
+            for (ref_E = 1; ref_E < refSize - 1; ++ref_E)
+            {
+                if (crossE[i][ref_E] >= 0 && crossE[i][ref_E + 1] >= 0)
+                {
+                    setHessianPos_SkewSym(
+                            crossE[i][ref_E],
+                            crossE[i][ref_E + 1],
+                            iRow, jCol, idx);
+                }
+            }
+            for (ref_F = 1; ref_F < refSize - 1; ++ref_F)
+            {
+                if (crossF[i][ref_F] >= 0 && crossF[i][ref_F + 1] >= 0)
+                {
+                    setHessianPos_SkewSym(
+                            crossF[i][ref_F],
+                            crossF[i][ref_F + 1],
+                            iRow, jCol, idx);
+                }
+            }
+            for (ref_E = 1; ref_E < refSize; ++ref_E)
+            {
+                p = crossE[i][ref_E];
+                if (p < 0) continue;
+                for (ref_F = 1; ref_F < refSize; ++ref_F)
+                {
+                    q = crossF[i][ref_F];
+                    if (q >= 0)
+                    {
+                        setHessianPos_SkewSym(p, q, iRow, jCol, idx);
+                    }
+                }
+            }
+        }
         for (; idx < nele_hess; idx++)
         {
             iRow[idx] = 0;
@@ -492,7 +567,7 @@ bool Optimize::eval_h(Ipopt::Index n, const Ipopt::Number *x,
         size = EnergyVertices.size();
         for (; i < size; i++)
         {
-            tmp = obj_factor * pOp->BendingEnergyCoef / EdgesLengthProduct[i] * VerticesWeight[i];
+            tmp = obj_factor * pOp->BendingEnergyCoef / EdgesLengthProduct[i] / VerticesWeight[i];
             idx_pv = idxPrevVertex[i];
             idx_nv = idxNextVertex[i];
             idx_cv = idxTheVertex[i];
@@ -531,6 +606,40 @@ bool Optimize::eval_h(Ipopt::Index n, const Ipopt::Number *x,
                 }
             }
         }
+        int ref_E, ref_F, p, q;
+        int base = edges.size();
+        i = 0;
+        size = crosses.size();
+        for (; i < size; ++i)
+        {
+            for (ref_E = 1; ref_E < refSize - 1; ++ref_E)
+            {
+                if (crossE[i][ref_E] >= 0 && crossE[i][ref_E + 1] >= 0)
+                {
+                    setHessianValues_SkewSym(i, crossE[i][ref_E], crossE[i][ref_E + 1], values, idx, x, lambda[base + i]);
+                }
+            }
+            for (ref_F = 1; ref_F < refSize - 1; ++ref_F)
+            {
+                if (crossF[i][ref_F] >= 0 && crossF[i][ref_F + 1] >= 0)
+                {
+                    setHessianValues_SkewSym(i, crossF[i][ref_F], crossF[i][ref_F + 1], values, idx, x, lambda[base + i]);
+                }
+            }
+            for (ref_E = 1; ref_E < refSize; ++ref_E)
+            {
+                p = crossE[i][ref_E];
+                if (p < 0) continue;
+                for (ref_F = 1; ref_F < refSize; ++ref_F)
+                {
+                    q = crossF[i][ref_F];
+                    if (q >= 0)
+                    {
+                        setHessianValues_SkewSym(i, p, q, values, idx, x, lambda[base + i]);
+                    }
+                }
+            }
+        }
 
     }
     assert(idx <= nele_hess);
@@ -560,6 +669,237 @@ void Optimize::finalize_solution(Ipopt::SolverReturn status, Ipopt::Index n, con
         curve->set_point(vertices[idx],OpenMesh::vector_cast<PetCurve::Point>(OpenMesh::Vec3d(x + 3 * idx)));
     }
 }
+
+
+void Optimize::setHessianPos_SkewSym(const int i, const int j, Ipopt::Index* iRow,Ipopt::Index* jCol, int& idx)
+{
+    iRow[idx] = 3 * i;
+    jCol[idx] = 3 * j + 1;
+    ++idx;
+    iRow[idx] = 3 * i;
+    jCol[idx] = 3 * j + 2;
+    ++idx;
+    iRow[idx] = 3 * i + 1;
+    jCol[idx] = 3 * j + 2;
+    ++idx;
+    iRow[idx] = 3 * i + 1;
+    jCol[idx] = 3 * j;
+    ++idx;
+    iRow[idx] = 3 * i + 2;
+    jCol[idx] = 3 * j;
+    ++idx;
+    iRow[idx] = 3 * i + 2;
+    jCol[idx] = 3 * j + 1;
+    ++idx;
+}
+
+
+//fill J_col Nabla_row Dist
+void Optimize::setHessianValues_SkewSym(const int i, const int row, const int col,
+                                        Ipopt::Number *values, int& idx, const double *x, double weight)
+{
+    int idx_p0, idx_p1, idx_q0, idx_q1;
+    idx_p0 = crossE[i][crossRef[i].first];
+    idx_p1 = crossE[i][crossRef[i].first + 1];
+    idx_q0 = crossF[i][crossRef[i].second];
+    idx_q1 = crossF[i][crossRef[i].second + 1];
+    Point q0 = getPoint(idx_q0, x);
+    Point q1 = getPoint(idx_q1, x);
+    Point p0 = getPoint(idx_p0, x);
+    Point p1 = getPoint(idx_p1, x);
+    if (row == idx_p0)
+    {
+        if (col == idx_p1) // H_p1 p0
+        {
+            setHessianValues_SkewSym_helper((q0 - q1) * weight, values, idx);
+        }
+        else if (col == idx_q0) //H_q0 p0
+        {
+            setHessianValues_SkewSym_helper((q1 - p1) * weight, values, idx);
+        }
+        else if (col == idx_q1) //H_q1 p0
+        {
+            setHessianValues_SkewSym_helper((p1 - q0) * weight, values, idx);
+        }
+        else
+            idx += 6;
+    }
+    else if (row == idx_p1)
+    {
+        if (col == idx_p0) // H_p0 p1
+        {
+            setHessianValues_SkewSym_helper((q1 - q0) * weight, values, idx);
+        }
+        else if (col == idx_q0) //H_q0 p1
+        {
+            setHessianValues_SkewSym_helper((p0 - q1) * weight, values, idx);
+        }
+        else if (col == idx_q1) //H_q1 p1
+        {
+            setHessianValues_SkewSym_helper((q0 - p0) * weight, values, idx);
+        }
+        else
+            idx += 6;
+    }
+    else if (row == idx_q0)
+    {
+        if (col == idx_p0) // H_p0 q0
+        {
+            setHessianValues_SkewSym_helper((p1 - q1) * weight, values, idx);
+        }
+        else if (col == idx_p1) //H_p1 q0
+        {
+            setHessianValues_SkewSym_helper((q1 - p0) * weight, values, idx);
+        }
+        else if (col == idx_q1) //H_q1 q0
+        {
+            setHessianValues_SkewSym_helper((p0 - p1) * weight, values, idx);
+        }
+        else
+            idx += 6;
+    }
+    else if (row == idx_q1)
+    {
+        if (col == idx_p0) // H_p0 q1
+        {
+            setHessianValues_SkewSym_helper((q0 - p1) * weight, values, idx);
+        }
+        else if (col == idx_p1) //H_p1 q1
+        {
+            setHessianValues_SkewSym_helper((p0 - q0) * weight, values, idx);
+        }
+        else if (col == idx_q0) //H_q0 q1
+        {
+            setHessianValues_SkewSym_helper((p1 - p0) * weight, values, idx);
+        }
+        else
+            idx += 6;
+    }
+    else
+        idx += 6;
+}
+
+void Optimize::setHessianValues_SkewSym_helper(const Point& p, Ipopt::Number *values, int& idx)
+{
+    values[idx++] = -p[2];
+    values[idx++] = p[1];
+    values[idx++] = -p[0];
+    values[idx++] = p[2];
+    values[idx++] = -p[1];
+    values[idx++] = p[0];
+}
+
+void Optimize::setJacGPos_cross(const int ref, const int base, const int i, int& idx, int* iRow, int* jCol)
+{
+    int first = crossE[i][ref];
+    int second = crossF[i][ref];
+    if (first >= 0)
+    {
+        iRow[idx] = base + i;
+        iRow[idx + 1] = base + i;
+        iRow[idx + 2] = base + i;
+        jCol[idx] = 3 * first;
+        jCol[idx + 1] = 3 * first + 1;
+        jCol[idx + 2] = 3 * first + 2;
+        idx += 3;
+    }
+    if (second >= 0)
+    {
+        iRow[idx] = base + i;
+        iRow[idx + 1] = base + i;
+        iRow[idx + 2] = base + i;
+        jCol[idx] = 3 * second;
+        jCol[idx + 1] = 3 * second + 1;
+        jCol[idx + 2] = 3 * second + 2;
+        idx += 3;
+    }
+}
+
+void Optimize::setJacGVal_cross(const int ref, const int i, int& idx, double *values, const double *x)
+{
+    int first = crossE[i][ref];
+    int second = crossF[i][ref];
+    Point p;
+    if (first >= 0)
+    {
+        if (ref == crossRef[i].first)
+        {
+            p = JacG_cross(i, 0, x);
+            copy(p.data(), values + idx);
+        }
+        else if (ref == crossRef[i].first + 1)
+        {
+            p = JacG_cross(i, 1, x);
+            copy(p.data(), values + idx);
+        }
+        else
+        {
+            setZeros(values + idx);
+        }
+        idx += 3;
+    }
+    if (second >= 0)
+    {
+        if (ref == crossRef[i].second)
+        {
+            p = JacG_cross(i, 2, x);
+            copy(p.data(), values + idx);
+        }
+        else if (ref == crossRef[i].second + 1)
+        {
+            p = JacG_cross(i, 3, x);
+            copy(p.data(), values + idx);
+        }
+        else
+        {
+            setZeros(values + idx);
+        }
+        idx += 3;
+    }
+}
+
+
+
+Optimize::Point Optimize::JacG_cross(const int idx_cross, int vertexposition, const double* x)
+{
+    /*------------------------------------------
+                   p0_  q1
+                    |\ /
+                      /
+                    |/ \
+                   q0-  p1
+    ------------------------------------------*/
+
+    Point p0,p1,q0,q1,result;
+    p0 = getPoint(crossE[idx_cross][crossRef[idx_cross].first], x);
+    q0 = getPoint(crossF[idx_cross][crossRef[idx_cross].second], x);
+    p1 = getPoint(crossE[idx_cross][crossRef[idx_cross].first+1], x);
+    q1 = getPoint(crossF[idx_cross][crossRef[idx_cross].second+1], x);
+
+    switch (vertexposition)
+    {
+    case 0:
+        //p0
+        result = (q1 - p1) % (q0 - q1);
+        break;
+    case 1:
+        //p1
+        result = (p0 - q1) % (q0 - q1);
+        break;
+    case 2:
+        //q0
+        result = (p0 - p1) % (q1 - p1);
+        break;
+    case 3:
+        //q1
+        result = (p0 - p1) % (p1 - q0);
+        break;
+
+    }
+    return result;
+}
+
+
 
 void Optimize::computeEF(const int i, const Ipopt::Number *x, Ipopt::Number *e, Ipopt::Number *f)
 {
@@ -643,6 +983,16 @@ const Ipopt::Number* Optimize::TangentNextVertex(int i, const Ipopt::Number *x)
     else
         return additionalPoints[-idx].data();
 }
+
+
+PetCurve::Point Optimize::getPoint(int i, const double* x)
+{
+    if (i >= 0)
+        return PetCurve::Point(x + 3 * i);
+    else
+        return additionalPoints[-i];
+}
+
 
 void Optimize::computeTangentEdge(int i, const Ipopt::Number *x, Ipopt::Number* r)
 {
@@ -811,4 +1161,279 @@ inline void Optimize::divideByScale(const Ipopt::Number *x, Ipopt::Number dn, Ip
     r[0] = x[0] / dn;
     r[1] = x[1] / dn;
     r[2] = x[2] / dn;
+}
+
+void Optimize::crossNormal(const double* p0,
+                 const double* p1,
+                 const double* q0,
+                 const double* q1,
+                 double* r)
+{
+    double u[3],v[3];
+    sub(p0, p1, u);
+    sub(q0, q1, v);
+    cross(u, v, r);
+}
+
+
+void Optimize::crossDiag(const double *p0, const double *p1, const double *q0, const double *q1, double *r)
+{
+    double p_center[3], q_center[3];
+    add(p0, p1, p_center);
+    multiplyByScale(p_center, 1/2);
+    add(q0, q1, q_center);
+    multiplyByScale(q_center, 1/2);
+    sub(p_center, q_center, r);
+}
+
+bool Optimize::LineSegmentsCollide(const Point& p1,
+                                   const Point& p2,
+                                   const Point& q1,
+                                   const Point& q2)
+{
+    OpenMesh::Vec3d p_center((p1 + p2)/2), q_center((q1+q2)/2);
+    if ((p_center - q_center).norm() < ((p1-p2).norm() + (q1 - q2).norm())/2 + pOp->r)
+        return true;
+    else
+        return false;
+}
+
+bool Optimize::LineSegmentsCollide(const PetCurve::HalfedgeHandle& he_i, const PetCurve::HalfedgeHandle& he_j)
+{
+    OpenMesh::VertexHandle p1(curve->from_vertex_handle(he_i)),
+            p2(curve->to_vertex_handle(he_i)),
+            p3(curve->from_vertex_handle(he_j)),
+            p4(curve->to_vertex_handle(he_j));
+    return LineSegmentsCollide(
+                curve->point(p1),
+                curve->point(p2),
+                curve->point(p3),
+                curve->point(p4));
+}
+
+
+double Optimize::LineSegmentsSqDistance(const PetCurve::HalfedgeHandle& he_i, const PetCurve::HalfedgeHandle& he_j)
+{
+    OpenMesh::VertexHandle p1(curve->from_vertex_handle(he_i)),
+            p2(curve->to_vertex_handle(he_i)),
+            p3(curve->from_vertex_handle(he_j)),
+            p4(curve->to_vertex_handle(he_j));
+    return LineSegmentsSqDistance(
+                curve->point(p1),
+                curve->point(p2),
+                curve->point(p3),
+                curve->point(p4));
+}
+
+double Optimize::LineSegmentsSqDistance(const int idx, const int ref_i, const int ref_j, const double* x)
+{
+    return LineSegmentsSqDistance(
+                getPoint(crossE[idx][ref_i], x),
+                getPoint(crossE[idx][ref_i+1], x),
+                getPoint(crossF[idx][ref_j], x),
+                getPoint(crossF[idx][ref_j+1], x));
+}
+
+
+double Optimize::CrossLineSegmentsDistance(const Point &p0, const Point &p1, const Point &q0, const Point &q1)
+{
+    Point w = (p0 - p1) % (q0 - q1);
+    return ((p0 + p1) / 2 - (q0 + q1) / 2) | w;
+}
+
+double Optimize::computeCrossDiagDistance(const int i, const double* x)
+{
+    return CrossLineSegmentsDistance(
+            getPoint(crossE[i][crossRef[i].first],x),
+            getPoint(crossE[i][crossRef[i].first+1],x),
+            getPoint(crossF[i][crossRef[i].second],x),
+            getPoint(crossF[i][crossRef[i].second+1],x)
+            );
+}
+
+
+double Optimize::LineSegmentsSqDistance(const Point &p0, const Point &p1, const Point &q0, const Point &q1)
+{
+    Point u = p1 - p0, v = q1 - q0, w = p0 - q0;
+    double a = u | u;
+    double b = u | v;
+    double c = v | v;
+    double d = u | w;
+    double e = v | w;
+    double D = a * c - b * b;
+    double sc, sN, sD = D;
+    double tc, tN, tD = D;
+    if (D < Mep)
+    {
+        sN = 0.0;
+        sD = 1.0;
+        tN = e;
+        tD = c;
+    }
+    else
+    {
+        sN = (b * e - c * d);
+        tN = (a * e - b * d);
+        if (sN < 0.0)
+        {
+            sN = 0.0;
+            tN = e;
+            tD = c;
+        }
+        else if (sN > sD)
+        {
+            sN = sD;
+            tN = e + b;
+            tD = c;
+        }
+    }
+
+    if (tN < 0.0)
+    {
+        tN = 0.0;
+        if ( -d < 00)
+            sN = 0.0;
+        else if ( -d > a)
+            sN = sD;
+        else
+        {
+            sN = -d;
+            sD = a;
+        }
+    }
+    else if (tN > tD)
+    {
+        tN = tD;
+        if ((-d + b ) < 0.0)
+            sN = 0;
+        else if ((-d + b) > a)
+            sN = sD;
+        else
+        {
+            sN = (-d + b);
+            sD = a;
+        }
+    }
+    sc = (fabs(sN) < Mep ? 0.0 : sN / sD);
+    tc = (fabs(sN) < Mep ? 0.0 : tN / tD);
+    Point dP = w + (sc * u) - (tc * v);
+    return dP.sqrnorm();
+}
+
+
+double Optimize::LineSegmentsSqDistance(const int p0,
+                                   const int p1,
+                                   const int q0,
+                                   const int q1,
+                              const double* x)
+{
+    return LineSegmentsSqDistance(getPoint(p0,x), getPoint(p1,x), getPoint(q0,x), getPoint(q1,x));
+}
+
+
+void Optimize::EdgesIntersections()
+{
+//    std::set<PetCurve::EdgeHandle> setEdges(edges.begin(), edges.end());
+
+    std::vector<PetCurve::EdgeHandle>::const_iterator it = edges.begin(), it_end = edges.end(), it2;
+    PetCurve::HalfedgeHandle he_hnd, he2_hnd;
+    PetCurve::EdgeHandle prev_e_hnd, next_e_hnd;
+    double r_sq = pOp->r * pOp->r;
+    for (; it != it_end; ++it)
+    {
+        he_hnd = curve->halfedge_handle(*it, 0);
+        he2_hnd = curve->next_halfedge_handle(he_hnd);
+        next_e_hnd = curve->edge_handle(he2_hnd);
+        he2_hnd = curve->prev_halfedge_handle(he_hnd);
+        prev_e_hnd = curve->edge_handle(he2_hnd);
+        for (it2 = it; it2 != it_end; ++it2)
+        {
+            if (*it2 == *it || *it2 == next_e_hnd || *it2 == prev_e_hnd)
+                continue;
+            he2_hnd = curve->halfedge_handle(*it2, 0);
+            if (LineSegmentsCollide(he_hnd, he2_hnd) && LineSegmentsSqDistance(he_hnd, he2_hnd) < r_sq)
+                crosses.push_back(pair<PetCurve::HalfedgeHandle, PetCurve::HalfedgeHandle>(he_hnd, he2_hnd));
+        }
+    }
+    PetCurve::VertexHandle v0, v1;
+    int from, to;
+    std::vector<pair<PetCurve::HalfedgeHandle, PetCurve::HalfedgeHandle> >::const_iterator it_cross = crosses.begin(),
+            it_end_cross = crosses.end();
+    for (; it_cross != it_end_cross; ++it_cross)
+    {
+        deque<int> E, F;
+        v0 = curve->from_vertex_handle((*it_cross).first);
+        v1 = curve->to_vertex_handle((*it_cross).first);
+        from = insertAdditionalPoint(v0);
+        to = insertAdditionalPoint(v1);
+        E.push_back(from);
+        E.push_back(to);
+        he2_hnd = he_hnd = (*it_cross).first;
+        for (int i = 0; i <= pOp->extension; ++i)
+        {
+            he_hnd = curve->next_halfedge_handle(he_hnd);
+            to = insertAdditionalPoint(curve->to_vertex_handle(he_hnd));
+            E.push_back(to);
+            he2_hnd = curve->prev_halfedge_handle(he2_hnd);
+            from = insertAdditionalPoint(curve->from_vertex_handle(he2_hnd));
+            E.push_front(from);
+        }
+        crossE.push_back(E);
+
+        v0 = curve->from_vertex_handle((*it_cross).second);
+        v1 = curve->to_vertex_handle((*it_cross).second);
+        from = insertAdditionalPoint(v0);
+        to = insertAdditionalPoint(v1);
+        F.push_back(from);
+        F.push_back(to);
+        he2_hnd = he_hnd = (*it_cross).second;
+        for (int i = 0; i <= pOp->extension; ++i)
+        {
+            he_hnd = curve->next_halfedge_handle(he_hnd);
+            to = insertAdditionalPoint(curve->to_vertex_handle(he_hnd));
+            F.push_back(to);
+            he2_hnd = curve->prev_halfedge_handle(he2_hnd);
+            from = insertAdditionalPoint(curve->from_vertex_handle(he2_hnd));
+            F.push_front(from);
+        }
+        crossF.push_back(F);
+
+        crossRef.push_back(pair<int, int>(pOp->extension + 1, pOp->extension + 1));
+    }
+    refSize = 2 * (2 + pOp->extension) - 1;
+}
+
+
+bool Optimize::updateCross(const double* x)
+{
+//    return true;
+    int first, second;
+    int idx_ref;
+    int idx_end = crosses.size();
+    double min_dist;
+    double distance;
+    pair<int, int> update;
+    for (idx_ref = 0; idx_ref < idx_end; ++idx_ref)
+    {
+        min_dist = numeric_limits<double>::max();
+        for (first = crossRef[idx_ref].first - 1; first <= crossRef[idx_ref].first + 1; ++first)
+        {
+            for (second = crossRef[idx_ref].second - 1; second <= crossRef[idx_ref].second + 1; ++second)
+            {
+                if(first < 0 || second < 0 || first >= refSize || second >= refSize)
+                {
+                    std::cout << "Increase extension\n" << std::endl;
+                    return false;
+                }
+                distance = LineSegmentsSqDistance(idx_ref, first, second, x);
+                if (distance < min_dist)
+                {
+                    update = pair<int, int>(first, second);
+                    min_dist = distance;
+                }
+            }
+        }
+        crossRef[idx_ref] = update;
+    }
+    return true;
 }
