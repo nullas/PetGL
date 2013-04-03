@@ -43,6 +43,7 @@ public:
 
     bool read_mesh(QString filename);
     virtual bool save(QString filename);
+    bool dumpToCSV(QString filename);
 
     QString name;
     void SetName(QString m_name);

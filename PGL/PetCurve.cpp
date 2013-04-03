@@ -28,7 +28,7 @@ bool PetCurve::iscurve()
 bool PetCurve::read_curve(QString filename)
 {
     ifstream fin;
-    fin.open(filename.toAscii(), ios::in);
+    fin.open(filename.toLocal8Bit().data(), ios::in);
     if (!fin.is_open())
     {
         cout<< "Read file error" << filename.toStdString() <<endl;
@@ -105,7 +105,7 @@ bool PetCurve::save(QString filename)
     QString meshname;
     meshname = qdir.absoluteFilePath(fi.baseName() + ".ply");
     if (!PetMesh::save(meshname)) return false;
-    ofstream fout(filename.toAscii());
+    ofstream fout(filename.toLocal8Bit().data());
     PetMesh::HalfedgeHandle h_hnd;
     PetMesh::VertexHandle v_hnd;
     if (!fout.is_open())

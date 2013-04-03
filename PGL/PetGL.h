@@ -36,6 +36,8 @@ public:
     PetMesh* getCurrentMesh();
     bool setCurrentMesh(PetMesh* mesh);
     QTabWidget* getPluginTab();
+    std::vector<PetPluginInterface *> PluginLists;
+
 
 public slots:
     void updateView(int level=0);
@@ -48,13 +50,14 @@ private slots:
     void savePet();
     void deletePet();
     void focusPet();
+    void dumpToCSVFile();
 
 
 private:
     QSignalMapper *signalMapper;
     QStreamRedirect* qout;
     Ui::MainWindow *ui;
-    std::vector<PetPluginInterface *> PluginLists;
+
 };
 
 #endif // PETGL_H

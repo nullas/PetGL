@@ -41,12 +41,16 @@ PetGL::PetGL(QWidget *parent) :
     QAction *focusAct = new QAction("focus", ui->MeshLists);
     QAction *saveAct = new QAction("save", ui->MeshLists);
     QAction *deleteAct = new QAction("delete", ui->MeshLists);
+    QAction *dumpToCSV = new QAction("dump to CSV", ui->MeshLists);
     connect(focusAct, SIGNAL(triggered(bool)), this, SLOT(focusPet()));
     connect(saveAct, SIGNAL(triggered(bool)), this, SLOT(savePet()));
     connect(deleteAct, SIGNAL(triggered(bool)), this, SLOT(deletePet()));
+    connect(dumpToCSV, SIGNAL(triggered(bool)), this, SLOT(dumpToCSVFile()));
     ui->MeshLists->addAction(focusAct);
     ui->MeshLists->addAction(saveAct);
+    ui->MeshLists->addAction(dumpToCSV);
     ui->MeshLists->addAction(deleteAct);
+
 
     qout = new QStreamRedirect(std::cout, ui->logWindow);
 
@@ -233,6 +237,21 @@ void PetGL::deletePet()
     delete item;
     this->DeletePetMesh(mesh);
     this->ui->MainViewer->updateGL();
+}
+
+void PetGL::dumpToCSVFile()
+{
+    QTreeWidgetItem *item = this->ui->MeshLists->currentItem();
+    PetMesh *mesh;
+    mesh = (PetMesh *) item->data(0,Qt::UserRole).value<void *>();
+    QString filename;
+    filename = \
+            QFileDialog::getSaveFileName(this, \
+                                         tr("Save to"), \
+                                         "/home/nullas/workspace/PetGL/meshes",
+                                         tr("CSV (*.csv)"));
+    if (filename.isEmpty()) return;
+    mesh->dumpToCSV(filename);
 }
 
 void PetGL::focusPet()

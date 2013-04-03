@@ -1,13 +1,15 @@
-#ifndef OPTIMIZE_H
-#define OPTIMIZE_H
+#ifndef OPTIMIZE_ELASITC_H
+#define OPTIMIZE_ELASITC_H
+
 
 #include <set>
 #include <deque>
 #include <coin/IpTNLP.hpp>
+#include <Eigen/Core>
 
 #include "elastic.h"
 
-class Optimize : public Ipopt::TNLP
+class OptimizeElastic : public Ipopt::TNLP
 {
 public:
 
@@ -38,9 +40,10 @@ public:
     };
     typedef PointArrayEdit_t<Ipopt::Number> PointArrayEdit;
     typedef OpenMesh::Vec3d Point;
+    typedef Eigen::Matrix<double, 3, 3, Eigen::RowMajor> Matrix3;
 
-    Optimize(Elastic* p);
-    ~Optimize();
+    OptimizeElastic(Elastic* p);
+    ~OptimizeElastic();
     virtual bool get_nlp_info(Ipopt::Index &n, Ipopt::Index &m,
                               Ipopt::Index &nnz_jac_g, Ipopt::Index &nnz_h_lag, Ipopt::TNLP::IndexStyleEnum &index_style);
     virtual bool get_bounds_info(Ipopt::Index n, Ipopt::Number *x_l, Ipopt::Number *x_u,
@@ -76,8 +79,10 @@ public:
     const Ipopt::Number* TangentNextVertex(int i, const Ipopt::Number *x);
     void computeTangentEdge(int i, const Ipopt::Number *x, Ipopt::Number* r);
     void computeEdge(int i, const Ipopt::Number *x, Ipopt::Number *r);
+    Point ComputeEdge(const PetCurve::HalfedgeHandle &h_hnd, const Ipopt::Number *x);
 
-    PetCurve::Point getPoint(int i, const double* x);
+
+    PetCurve::Point getPoint(const int i, const double* x);
 
     inline void cross(const Ipopt::Number* p, const Ipopt::Number* q, Ipopt::Number* r);
     inline void add(const Ipopt::Number* p, const Ipopt::Number* q, Ipopt::Number* r);
@@ -123,6 +128,7 @@ public:
 
     void computeEF(const int i, const Ipopt::Number *x, Point& e, Point& f);
     void computeEF(const int i, const Ipopt::Number *x, double *e, double *f);
+    Point ComputeKb(const int i, const double *x);
 
     inline Ipopt::Number dot(const Ipopt::Number* p, const Ipopt::Number* q);
     inline Ipopt::Number sqrnorm(const Ipopt::Number* p);
@@ -156,6 +162,8 @@ public:
 
     double LineSegmentsSqDistance(const PetCurve::HalfedgeHandle& he_i, const PetCurve::HalfedgeHandle& he_j);
 
+    double LineSegmentsSqDistance(const PetCurve::HalfedgeHandle& he_i, const PetCurve::HalfedgeHandle& he_j, const double *x);
+
     double LineSegmentsSqDistance(const int idx, const int ref_i, const int ref_j, const double* x);
 
     double LineSegmentsDistance(const Point& p0,
@@ -178,10 +186,55 @@ public:
 
     void setJacGPos_cross(const int ref, const int base, const int i, int& idx, int* iRow, int* jCol);
 
-    void setJacGVal_cross(const int ref, const int i, int& idx, double *values, const double *x);
+    void ComputeGradientCross(const int i, int& idx, double *values, const double *x);
 
-    Point JacG_cross(const int idx_cross, int vertexposition, const double* x);
+    void AddHessianCrossing(const int row, const int col, const Point &p, double *values);
 
+    // material frames
+    void RectifyMaterialFrameAtEnds(const PetCurve::HalfedgeHandle &h_hnd, Point &p);
+
+    void UpdateMaterialFrameAtEnds(const double *x);
+
+    Point ComputeParallelTransportation(const double *x);
+
+    Point ParallelTransportation(Point t1, Point t2, const Point &x);
+
+    double ComputeDifferenceAngle(const Point &axis, const Point &up, const Point &x);
+
+    double ComputeDifferenceAngle(Point r ,const double *x);
+
+    void UpdateBishopFrameAtEnd(const double *x);
+
+    Point ComputeTwistGradient(const Point &E, const Point &F, const int i);
+
+    Point ComputeKb(const Point &E, const Point &F);
+
+    // Hessian setting
+    inline void AddHessianAtEntry(int i, int j, const int c_i, const int c_j, double *x, const double value);
+
+    inline void AddHessianAtDiagogal(const int i, const int j, double *x, double value);
+
+    inline void AddHessianAtEntries(const int i, const int j, double *x, const double *values);
+
+    void AddHessianAtEntries(const int i, const int j, double *x, const Matrix3 &values);
+
+    void AddHessianAtEntriesBendingHelper(const Point &p, const Point &q, Matrix3 &m);
+
+    void AddHessianAtEntriesBendingHelper(const int i, const int j, const Point &p, const Point &q, double *values);
+
+    void AddHessianAtEntriesBendingHelper(const Point &p, const Point &q, double m[9]);
+
+    void AddHessianBending(const int i, const int row, const int col,
+                           double *values, const double *x, const double coef);
+
+    void AddHessianTwistingStep1(double *values, const double *x, const double coef);
+
+    Matrix3 ComputePQT(const Point &p, const Point &q);
+    Matrix3 ComputeGradientKb(const Point &e, const Point &f, const int i);
+    Matrix3 ComputeCrossMatrix(const Point &p);
+    void AddHessianTwistingStep2(double *values, const double *x, const double coef);
+    void AddHessianAtDiagonal(const int i, const int j, double *x, double value);
+    double ComputeTotalLength();
 private:
     Elastic* pElastic;
     PetCurve* curve;
@@ -205,12 +258,22 @@ private:
     int insertAdditionalPoint(const PetCurve::VertexHandle& v_hnd);
     std::vector<OpenMesh::Vec3d> positions;
 
-    //for crossing
+    // for crossing
     std::vector<std::pair<PetCurve::HalfedgeHandle, PetCurve::HalfedgeHandle> > crosses;
     std::vector<deque<int> > crossE;
     std::vector<deque<int> > crossF;
     std::vector<pair<int, int> > crossRef;
     int refSize;
+
+    // material frame
+    std::pair<Point, Point> material_frames_at_ends_;
+    std::pair<PetCurve::HalfedgeHandle, PetCurve::HalfedgeHandle> halfedge_at_ends_;
+    std::pair<Point, Point> previous_end_positions_;
+    Point previous_bishop_at_end_;
+    Point bishop_at_end_;
+    double difference_material_frame_;
+    double total_length_;
+    std::vector<double> twist_edge_product_;
 };
 
-#endif // OPTIMIZE_H
+#endif // OPTIMIZE_ELASITC_H

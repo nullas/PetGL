@@ -13,6 +13,7 @@ class PetPluginInterface : public QObject
 public:
     virtual ~PetPluginInterface() {}
     virtual void initial(QWidget* parent) = 0;
+    virtual void drawExtra() = 0;
 signals:
     void updateViewNeeded(int level=0);
 };

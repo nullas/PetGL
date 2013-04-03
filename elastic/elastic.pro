@@ -5,6 +5,7 @@
 #-------------------------------------------------
 
 QT += core gui opengl xml
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET = elastic
 TEMPLATE = lib
@@ -13,28 +14,31 @@ CONFIG  += plugin dll
 
 unix {
     CONFIG += link_pkgconfig
-    PKGCONFIG += ipopt
+    PKGCONFIG += ipopt eigen3
 }
 
 include (../common.pri)
 SOURCES += elastic.cpp \
-    optimize.cpp
+    optimize.cpp \
+    optimize_elastic.cpp
 
 HEADERS += elastic.h \
-    optimize.h
+    optimize.h \
+    optimize_elastic.h
+
+FORMS += \
+    elasticpanel.ui
+
+INCLUDEPATH += /usr/local/include/eigen3
 
 LIBS += -lPetMesh -lPGL
 
 DESTDIR = ..
 
+QMAKE_RPATH = .
+
 unix:!symbian {
-    maemo5 {
-        target.path = ../lib/plugins
-    } else {
-        target.path = ../lib/plugins
-    }
+    target.path = ../lib/plugins
     INSTALLS += target
 }
 
-FORMS += \
-    elasticpanel.ui

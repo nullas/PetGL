@@ -30,6 +30,7 @@ public:
     Elastic();
     ~Elastic();
     void initial(QWidget* parent);
+    void drawExtra();
     double r;
     typedef typename OpenMesh::Vec3d Point;
     std::vector<PetCurve::VertexHandle> selectedVertices;
@@ -42,16 +43,22 @@ public:
 
     std::vector<pair<PetCurve::VertexHandle, Point> > PositionConstraints;
     std::vector<pair<PetCurve::EdgeHandle, Point> > TangentConstraints;
+    std::vector<pair<PetCurve::Point, double> > PlaneConstraintsInfo;
+    std::vector<PetCurve::VertexHandle> PlaneConstraints;
+    std::vector<Point> MaterialFrameConstraints;
 
     PetCurve* curveToOptimize;
 
     typedef struct
     {
         double BendingEnergyCoef;
+        double TwistingEnergyCoef;
         double PositionConstraintsWeight;
         double TangentConstraintsCoef;
+        double PlaneConstraintsCoef;
         double r;
         int extension;
+        int twisting_times;
     }pOptimize;
 
     pOptimize pO;
@@ -96,6 +103,20 @@ private slots:
 
     void on_spinBox_extension_editingFinished();
 
+    void on_doubleSpinBox_editingFinished();
+
+    void on_doubleSpinBox_PlaneConstraintsCoef_editingFinished();
+
+    void on_pushButton_doItRightIter_clicked();
+
+    void on_pushButton_computeRotation_clicked();
+
+    void on_pushButton_twist_clicked();
+
+    void on_doubleSpinBox_TwistingEnergyCoef_editingFinished();
+
+    void on_spinBox_twist_times_editingFinished();
+
 public:
     PetGL* pgl;
     QWidget* tabPluginWidget;
@@ -110,7 +131,10 @@ public:
     PetMesh* pmesh;
     PetCurve* pcurve;
 
+    std::vector<pair<Point, Point> > axisExtra;
+
     bool getCurrentCurve();
+    void clearAllConstraints();
 
     double Mepsilon;
 
@@ -156,6 +180,8 @@ public:
                            std::vector<std::pair<PetCurve::EdgeHandle, PetCurve::EdgeHandle> >& inter);
 
     void setPointsFixed(const std::vector<PetCurve::VertexHandle>& hnd);
+
+    void computeRotation();
 
 
 

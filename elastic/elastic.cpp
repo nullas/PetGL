@@ -2,10 +2,15 @@
 
 #include <cmath>
 
+#include <GL/gl.h>
+
 #include <QFileDialog>
+
+#include <QGLViewer/qglviewer.h>
 
 #include "coin/IpIpoptApplication.hpp"
 #include "optimize.h"
+#include "optimize_elastic.h"
 #include "ui_elasticpanel.h"
 
 
@@ -50,26 +55,57 @@ void Elastic::addTabWidget(const char* pluginName)
     }
 }
 
+
+void Elastic::drawExtra()
+{
+    std::vector<pair<Point, Point> >::const_iterator it = axisExtra.begin(),
+            it_end = axisExtra.end();
+    glPushAttrib(GL_LIGHTING);
+    glEnable(GL_LIGHTING);
+    glColor3f(1,0,0);
+    if (it != it_end)
+    {
+        QGLViewer::drawArrow(qglviewer::Vec(it->first[0],it->first[1],it->first[2]),
+                qglviewer::Vec(it->second[0],it->second[1],it->second[2]));
+    }
+
+    glColor3f(0.5, 0.5, 0.5);
+    for (; it != it_end; ++it)
+    {
+        QGLViewer::drawArrow(qglviewer::Vec(it->first[0],it->first[1],it->first[2]),
+                qglviewer::Vec(it->second[0],it->second[1],it->second[2]));
+    }
+    glPopAttrib();
+}
+
+
 void Elastic::setupTabWidget()
 {
-    connect(ui->selectcurve,SIGNAL(clicked()),this,SLOT(on_selectcurve_clicked()));
-    connect(ui->clearcurves,SIGNAL(clicked()),this,SLOT(on_clearcurves_clicked()));
-    connect(ui->clearvertices,SIGNAL(clicked()),this,SLOT(on_clearvertices_clicked()));
-    connect(ui->doubleSpinBox_collisionradius,SIGNAL(valueChanged(double)),
-            this,SLOT(on_doubleSpinBox_collisionradius_valueChanged(double)));
-    connect(ui->pushButton_intersection,SIGNAL(clicked()),this,SLOT(on_pushButton_intersection_clicked()));
-    connect(ui->pushButton_VerticesFromCurves,SIGNAL(clicked()),
-            this,SLOT(on_pushButton_VerticesFromCurves_clicked()));
-    connect(ui->pushButton_wholeCurvesVertices,SIGNAL(clicked()),
-            this,SLOT(on_pushButton_wholeCurvesVertices_clicked()));
-    connect(ui->pushButton_setInvolved,SIGNAL(clicked()),
-            this,SLOT(on_pushButton_setInvolved_clicked()));
-    connect(ui->pushButton_doitright,SIGNAL(clicked()),
-            this,SLOT(on_pushButton_doitright_clicked()));
-    connect(ui->doubleSpinBox_PositionConstraintsWeight,SIGNAL(editingFinished()),
-            this,SLOT(on_doubleSpinBox_PositionConstraintsWeight_editingFinished()));
+    connect(ui->selectcurve, SIGNAL(clicked()), this, SLOT(on_selectcurve_clicked()));
+    connect(ui->clearcurves, SIGNAL(clicked()), this, SLOT(on_clearcurves_clicked()));
+    connect(ui->clearvertices, SIGNAL(clicked()), this, SLOT(on_clearvertices_clicked()));
+    connect(ui->doubleSpinBox_collisionradius, SIGNAL(valueChanged(double)),
+            this, SLOT(on_doubleSpinBox_collisionradius_valueChanged(double)));
+    connect(ui->pushButton_intersection, SIGNAL(clicked()),
+            this, SLOT(on_pushButton_intersection_clicked()));
+    connect(ui->pushButton_VerticesFromCurves, SIGNAL(clicked()),
+            this, SLOT(on_pushButton_VerticesFromCurves_clicked()));
+    connect(ui->pushButton_wholeCurvesVertices, SIGNAL(clicked()),
+            this, SLOT(on_pushButton_wholeCurvesVertices_clicked()));
+    connect(ui->pushButton_setInvolved, SIGNAL(clicked()),
+            this, SLOT(on_pushButton_setInvolved_clicked()));
+    connect(ui->pushButton_doitright, SIGNAL(clicked()),
+            this, SLOT(on_pushButton_doitright_clicked()));
+    connect(ui->doubleSpinBox_PositionConstraintsWeight, SIGNAL(editingFinished()),
+            this, SLOT(on_doubleSpinBox_PositionConstraintsWeight_editingFinished()));
     connect(ui->doubleSpinBox_TangentConstraintsCoef, SIGNAL(editingFinished()),
             this, SLOT(on_doubleSpinBox_TangentConstraintsCoef_editingFinished()));
+    connect(ui->doubleSpinBox_PlaneConstraintsCoef, SIGNAL(editingFinished()),
+            this, SLOT(on_doubleSpinBox_PlaneConstraintsCoef_editingFinished()));
+    connect(ui->doubleSpinBox_TwistingEnergyCoef, SIGNAL(editingFinished()),
+            this, SLOT(on_doubleSpinBox_TwistingEnergyCoef_editingFinished()));
+    connect(ui->spinBox_twist_times, SIGNAL(editingFinished()),
+            this, SLOT(on_spinBox_twist_times_editingFinished()));
     connect(ui->spinBox_extension, SIGNAL(editingFinished()),
             this, SLOT(on_spinBox_extension_editingFinished()));
     connect(ui->pushButton_test, SIGNAL(clicked()),
@@ -82,14 +118,23 @@ void Elastic::setupTabWidget()
             this, SLOT(on_pushButton_exprotSelection_clicked()));
     connect(ui->pushButton_clear, SIGNAL(clicked()),
             this, SLOT(on_pushButton_clear_clicked()));
+    connect(ui->pushButton_doItRightIter, SIGNAL(clicked()),
+            this, SLOT(on_pushButton_doItRightIter_clicked()));
+    connect(ui->pushButton_computeRotation, SIGNAL(clicked()),
+            this, SLOT(on_pushButton_computeRotation_clicked()));
+    connect(ui->pushButton_twist, SIGNAL(clicked()),
+            this, SLOT(on_pushButton_twist_clicked()));
 
 
     r = ui->doubleSpinBox_collisionradius->value();
     pO.r = r;
     pO.PositionConstraintsWeight = ui->doubleSpinBox_PositionConstraintsWeight->value();
     pO.BendingEnergyCoef = ui->doubleSpinBox_BendingEnergyCoef->value();
+    pO.TwistingEnergyCoef = ui->doubleSpinBox_TwistingEnergyCoef->value();
+    pO.twisting_times = ui->spinBox_twist_times->value();
     pO.TangentConstraintsCoef = ui->doubleSpinBox_TangentConstraintsCoef->value();
     pO.extension = ui->spinBox_extension->value();
+    pO.PlaneConstraintsCoef = ui->doubleSpinBox_PlaneConstraintsCoef->value();
 }
 
 
@@ -489,10 +534,9 @@ void Elastic::on_pushButton_doitright_clicked()
         fin >> cType;
     }
 
-    Point::value_type x, y, z;
-    PositionConstraints.clear();
-    TangentConstraints.clear();
-    verticesToOptimize.clear();
+    clearAllConstraints();
+    Point::value_type x, y, z, w;
+    Point P;
     std::vector<pair<char, int> >::const_iterator it = filestruct.begin(),
             it_end = filestruct.end();
     for (; it != it_end; ++it)
@@ -517,6 +561,15 @@ void Elastic::on_pushButton_doitright_clicked()
                                               Point(x,y,z)));
             }
             break;
+        case 'A':
+            for (int i = 0; i < (*it).second; ++i)
+            {
+                fin >> idx >> x >> y >> z >> w;
+                P = Point(x, y, z);
+                PlaneConstraintsInfo.push_back(pair<PetCurve::Point, double>(P, w));
+                PlaneConstraints.push_back(curveToOptimize->vertex_handle(idx));
+            }
+            break;
         case 'V':
             for (int i =0; i < (*it).second; ++i)
             {
@@ -524,6 +577,7 @@ void Elastic::on_pushButton_doitright_clicked()
                 verticesToOptimize.push_back(curveToOptimize->vertex_handle(idx));
             }
             break;
+
         default:
             return;
         }
@@ -535,7 +589,8 @@ void Elastic::on_pushButton_doitright_clicked()
     app->Options()->SetNumericValue("tol", 1e-7);
     app->Options()->SetStringValue("mu_strategy", "adaptive");
     app->Options()->SetStringValue("output_file", "ipopt.out");
-//    app->Options()->SetStringValue("derivative_test","second-order");
+    app->Options()->SetNumericValue("point_perturbation_radius", 10);
+    app->Options()->SetStringValue("derivative_test","second-order");
 //    app->Options()->SetStringValue("linear_solver","ma57");
 
     Ipopt::ApplicationReturnStatus status;
@@ -666,6 +721,7 @@ void Elastic::on_pushButton_optimize_clicked()
     app->Options()->SetStringValue("mu_strategy", "adaptive");
     app->Options()->SetStringValue("output_file", "ipopt.out");
 //    app->Options()->SetStringValue("derivative_test","second-order");
+    app->Options()->SetNumericValue("point_perturbation_radius", 0.);
 //    app->Options()->SetNumericValue("derivative_test_perturbation", 1e-8);
 //    app->Options()->SetStringValue("linear_solver","ma57");
     Ipopt::ApplicationReturnStatus status;
@@ -725,9 +781,12 @@ void Elastic::on_pushButton_exprotSelection_clicked()
         fout << verticesToOptimize[i].idx() << " ";
     }
     fout << std::endl;
+    Point p;
     for (unsigned int i = 0; i < idxVertices.size(); ++i)
     {
-        fout << idxVertices[i] << " " << std::endl;
+        fout << idxVertices[i] << " ";
+        p = curveToOptimize->point(curveToOptimize->vertex_handle(idxVertices[i]));
+        fout << p[0] << " " << p[1] << " " << p[2] << std::endl;
     }
     for (unsigned int i = 0; i < idxEdges.size(); ++i)
     {
@@ -738,12 +797,409 @@ void Elastic::on_pushButton_exprotSelection_clicked()
 
 void Elastic::on_pushButton_clear_clicked()
 {
-    verticesToOptimize.clear();
-    TangentConstraints.clear();
+    clearAllConstraints();
+}
+
+
+void Elastic::clearAllConstraints()
+{
     PositionConstraints.clear();
+    TangentConstraints.clear();
+    PlaneConstraints.clear();
+    PlaneConstraintsInfo.clear();
+    verticesToOptimize.clear();
 }
 
 void Elastic::on_spinBox_extension_editingFinished()
 {
     pO.extension = ui->spinBox_extension->value();
+}
+
+
+void Elastic::on_doubleSpinBox_PlaneConstraintsCoef_editingFinished()
+{
+    pO.PlaneConstraintsCoef = ui->doubleSpinBox_PlaneConstraintsCoef->value();
+}
+
+void Elastic::on_pushButton_doItRightIter_clicked()
+{
+    QString filename = \
+            QFileDialog::getOpenFileName(tabPlugin, \
+                                         tr("Optimize"), \
+                                         "/home/nullas/workspace/PetGL/meshes", \
+                                         tr("Optimization (*.oit)"));
+    if (filename.isEmpty()) return;
+    QFileInfo finfo = QFileInfo(filename);
+    QDir dir = finfo.absoluteDir();
+    ifstream fin;
+    fin.open(filename.toAscii(), ios::in);
+    if (!fin.is_open())
+    {
+        cout<< "Read file error" << filename.toStdString() <<endl;
+        return;
+    }
+
+    std::string fname;
+    fin >> fname;
+    if (fin.eof()) return;
+    fname = dir.filePath(QString(fname.c_str())).toStdString();
+    PetCurve *mesh = new PetCurve();
+    if(!mesh->read_curve(QString(fname.c_str()))) return;
+
+    pgl->AddPetMesh(mesh);
+
+    PetMesh* pmesh = mesh;
+    if (!pmesh) return;
+    if (!pmesh->iscurve()) return;
+    curveToOptimize = dynamic_cast<PetCurve*>(pmesh);
+
+    int iteration = 1;
+
+
+    int idx;
+    char cType;
+    int n;
+    std::vector<pair<char, int> > filestruct;
+    fin >> cType;
+    if (cType == 'I')
+    {
+        fin >> iteration;
+        fin >> cType;
+    }
+
+    for (int i = 0; i < iteration; ++i)
+    {
+        filestruct.clear();
+        while (cType != 'E' && !fin.eof())
+        {
+            if (cType == 'S')
+            {
+                fin >> cType;
+                continue;
+            }
+            fin >> n;
+            filestruct.push_back(pair<char, int>(cType, n));
+            fin >> cType;
+        }
+
+        clearAllConstraints();
+        Point::value_type x, y, z, w;
+        Point P;
+        std::vector<pair<char, int> >::const_iterator it = filestruct.begin(),
+                it_end = filestruct.end();
+        for (; it != it_end; ++it)
+        {
+            switch ((*it).first)
+            {
+            case 'P':
+                for (int i = 0; i < (*it).second; ++i)
+                {
+                    fin >> idx >> x >> y >> z;
+                    PositionConstraints.push_back(pair<PetCurve::VertexHandle, Point>
+                                                  (curveToOptimize->vertex_handle(idx),
+                                                   Point(x,y,z)));
+                }
+                break;
+            case 'T':
+                for (int i = 0; i < (*it).second; ++i)
+                {
+                    fin >> idx >> x >> y >> z;
+                    TangentConstraints.push_back(pair<PetCurve::EdgeHandle, Point>
+                                                 (curveToOptimize->edge_handle(idx),
+                                                  Point(x,y,z)));
+                }
+                break;
+            case 'A':
+                for (int i = 0; i < (*it).second; ++i)
+                {
+                    fin >> idx >> x >> y >> z >> w;
+                    P = Point(x, y, z);
+                    PlaneConstraintsInfo.push_back(pair<PetCurve::Point, double>(P, w));
+                    PlaneConstraints.push_back(curveToOptimize->vertex_handle(idx));
+                }
+                break;
+            case 'V':
+                for (int i =0; i < (*it).second; ++i)
+                {
+                    fin >> idx;
+                    verticesToOptimize.push_back(curveToOptimize->vertex_handle(idx));
+                }
+                break;
+
+            default:
+                return;
+            }
+        }
+
+        Ipopt::SmartPtr<Ipopt::TNLP> mynlp = new Optimize(this);
+        Ipopt::SmartPtr<Ipopt::IpoptApplication> app = IpoptApplicationFactory();
+
+        app->Options()->SetNumericValue("tol", 1e-7);
+        app->Options()->SetStringValue("mu_strategy", "adaptive");
+        app->Options()->SetStringValue("output_file", "ipopt.out");
+        app->Options()->SetNumericValue("point_perturbation_radius", 0.);
+    //    app->Options()->SetStringVaue("derivative_test","second-order");
+    //    app->Options()->SetStringValue("linear_solver","ma57");
+
+        Ipopt::ApplicationReturnStatus status;
+        status = app->Initialize();
+        if (status != Ipopt::Solve_Succeeded)
+        {
+            std::cout << "\n\n*** Error during initialization!\n" << std::endl;
+        }
+
+        // Ask Ipopt to solve the problem
+        status = app->OptimizeTNLP(mynlp);
+
+        if (status == Ipopt::Solve_Succeeded)
+        {
+            std::cout << "\n\n*** The problem solved!\n" << std::endl;
+        }
+        else
+        {
+            std::cout << "\n\n*** The problem FAILED!\n" << std::endl;
+        }
+
+        pgl->updateView(1);
+        fin >> cType;
+        while (!fin.eof() && cType != 'S') fin >> cType;
+        if (fin.eof()) break;
+    }
+
+
+}
+
+
+void Elastic::on_pushButton_computeRotation_clicked()
+{
+    static int status = 0;
+    if (!getCurrentCurve()) return;
+    status = 1 - status;
+    axisExtra.clear();
+    if (status == 1)
+        computeRotation();
+    pgl->updateView();
+}
+
+
+void Elastic::computeRotation()
+{
+    axisExtra.clear();
+    PetCurve::CurveIter c_it = pcurve->faces_begin(),
+            c_it_end = pcurve->faces_end();
+    PetCurve::CurveHalfedgeIter ch_it;
+    PetCurve::HalfedgeHandle h_hnd;
+    Point p, c, n, axisFrom, axisTo, e, f, v, cross, n1, n2;
+    double length, x, y, z;
+    for (; c_it != c_it_end; ++c_it)
+    {
+        v = Point(0, 0, 1);
+        ch_it = pcurve->fh_iter(c_it.handle());
+        p = pcurve->point(pcurve->from_vertex_handle(ch_it.handle()));
+        c = pcurve->point(pcurve->to_vertex_handle(ch_it.handle()));
+        axisFrom = (p+c) / 2;
+        length = (p-c).norm() / 4;
+        v = v % (p-c);
+        v /= v.norm();
+        v *= length;
+        axisTo = axisFrom + v;
+        axisExtra.push_back(pair<Point, Point>(axisFrom, axisTo));
+        for (; ch_it; ++ch_it)
+        {
+            h_hnd = pcurve->next_halfedge_handle(ch_it.handle());
+            p = pcurve->point(pcurve->from_vertex_handle(ch_it.handle()));
+            c = pcurve->point(pcurve->to_vertex_handle(ch_it.handle()));
+            n = pcurve->point(pcurve->to_vertex_handle(h_hnd));
+            e = c - p;
+            e /= e.norm();
+            f = n - c;
+            f /= f.norm();
+            cross = e % f;
+            if (cross.norm() < 1e-5)
+            {
+                axisFrom = (c+n) / 2;
+                axisTo = axisFrom + v;
+            }
+            else
+            {
+                cross /= cross.norm();
+                n1 = cross % e;
+                n2 = cross % f;
+                x = v | e;
+                y = v | n1;
+                z = v | cross;
+                v = f * x + n2 * y + cross * z;
+                axisFrom = (c+n) / 2;
+                axisTo = axisFrom + v;
+            }
+            axisExtra.push_back(pair<Point, Point>(axisFrom, axisTo));
+        }
+    }
+}
+
+void Elastic::on_pushButton_twist_clicked()
+{
+    QString filename = \
+            QFileDialog::getOpenFileName(tabPlugin, \
+                                         tr("Optimize"), \
+                                         "/home/nullas/workspace/PetGL/meshes", \
+                                         tr("Optimization (*.toit)"));
+    if (filename.isEmpty()) return;
+    QFileInfo finfo = QFileInfo(filename);
+    QDir dir = finfo.absoluteDir();
+    ifstream fin;
+    fin.open(filename.toAscii(), ios::in);
+    if (!fin.is_open())
+    {
+        cout<< "Read file error" << filename.toStdString() <<endl;
+        return;
+    }
+
+    std::string fname;
+    fin >> fname;
+    if (fin.eof()) return;
+    fname = dir.filePath(QString(fname.c_str())).toStdString();
+    PetCurve *mesh = new PetCurve();
+    if(!mesh->read_curve(QString(fname.c_str()))) return;
+
+    pgl->AddPetMesh(mesh);
+
+    PetMesh* pmesh = mesh;
+    if (!pmesh) return;
+    if (!pmesh->iscurve()) return;
+    curveToOptimize = dynamic_cast<PetCurve*>(pmesh);
+
+    int iteration = 1;
+
+
+    int idx;
+    char cType;
+    int n;
+    std::vector<pair<char, int> > filestruct;
+    fin >> cType;
+    if (cType == 'I')
+    {
+        fin >> iteration;
+        fin >> cType;
+    }
+
+    for (int i = 0; i < iteration; ++i)
+    {
+        filestruct.clear();
+        while (cType != 'E' && !fin.eof())
+        {
+            if (cType == 'S')
+            {
+                fin >> cType;
+                continue;
+            }
+            fin >> n;
+            filestruct.push_back(pair<char, int>(cType, n));
+            fin >> cType;
+        }
+
+        clearAllConstraints();
+        Point::value_type x, y, z, w;
+        Point P;
+        std::vector<pair<char, int> >::const_iterator it = filestruct.begin(),
+                it_end = filestruct.end();
+        for (; it != it_end; ++it)
+        {
+            switch ((*it).first)
+            {
+            case 'P':
+                for (int i = 0; i < (*it).second; ++i)
+                {
+                    fin >> idx >> x >> y >> z;
+                    PositionConstraints.push_back(pair<PetCurve::VertexHandle, Point>
+                                                  (curveToOptimize->vertex_handle(idx),
+                                                   Point(x,y,z)));
+                }
+                break;
+            case 'T':
+                for (int i = 0; i < (*it).second; ++i)
+                {
+                    fin >> idx >> x >> y >> z;
+                    TangentConstraints.push_back(pair<PetCurve::EdgeHandle, Point>
+                                                 (curveToOptimize->edge_handle(idx),
+                                                  Point(x,y,z)));
+                }
+                break;
+            case 'A':
+                for (int i = 0; i < (*it).second; ++i)
+                {
+                    fin >> idx >> x >> y >> z >> w;
+                    P = Point(x, y, z);
+                    PlaneConstraintsInfo.push_back(pair<PetCurve::Point, double>(P, w));
+                    PlaneConstraints.push_back(curveToOptimize->vertex_handle(idx));
+                }
+                break;
+            case 'V':
+                for (int i =0; i < (*it).second; ++i)
+                {
+                    fin >> idx;
+                    verticesToOptimize.push_back(curveToOptimize->vertex_handle(idx));
+                }
+                break;
+            case 'M':
+                for (int i = 0; i < (*it).second; ++i)
+                {
+                    fin >> x >> y >> z;
+                    P = Point(x,y,z);
+                    MaterialFrameConstraints.push_back(P);
+                }
+                break;
+
+            default:
+                return;
+            }
+        }
+
+        Ipopt::SmartPtr<Ipopt::TNLP> mynlp = new OptimizeElastic(this);
+        Ipopt::SmartPtr<Ipopt::IpoptApplication> app = IpoptApplicationFactory();
+
+        app->Options()->SetNumericValue("tol", 1e-7);
+        app->Options()->SetStringValue("mu_strategy", "adaptive");
+        app->Options()->SetStringValue("output_file", "ipopt.out");
+        app->Options()->SetNumericValue("point_perturbation_radius", 0.);
+        app->Options()->SetStringValue("derivative_test","second-order");
+//        app->Options()->SetStringValue("linear_solver","mumps");
+
+        Ipopt::ApplicationReturnStatus status;
+        status = app->Initialize();
+        if (status != Ipopt::Solve_Succeeded)
+        {
+            std::cout << "\n\n*** Error during initialization!\n" << std::endl;
+        }
+
+        // Ask Ipopt to solve the problem
+        status = app->OptimizeTNLP(mynlp);
+
+        if (status == Ipopt::Solve_Succeeded)
+        {
+            std::cout << "\n\n*** The problem solved!\n" << std::endl;
+        }
+        else
+        {
+            std::cout << "\n\n*** The problem FAILED!\n" << std::endl;
+        }
+        pgl->updateView(1);
+        fin >> cType;
+        while (!fin.eof() && cType != 'S') fin >> cType;
+        if (fin.eof()) break;
+    }
+
+}
+
+
+void Elastic::on_doubleSpinBox_TwistingEnergyCoef_editingFinished()
+{
+    pO.TwistingEnergyCoef = ui->doubleSpinBox_TwistingEnergyCoef->value();
+}
+
+
+
+void Elastic::on_spinBox_twist_times_editingFinished()
+{
+    pO.twisting_times = ui->spinBox_twist_times->value();
 }

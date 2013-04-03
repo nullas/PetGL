@@ -27,6 +27,12 @@ void Viewer::draw()
         if ((*iter)->visible) (*iter)->render();
 //        drawMesh(**iter);
     }
+    std::vector<PetPluginInterface *>::const_iterator it = parent->PluginLists.begin(),
+            it_end = parent->PluginLists.end();
+    for (; it != it_end; ++it)
+    {
+        (*it)->drawExtra();
+    }
 }
 
 void Viewer::init()

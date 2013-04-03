@@ -5,7 +5,6 @@
 #-------------------------------------------------
 
 QT += core xml opengl gui
-
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 include (../externallib.pri)
@@ -23,6 +22,3 @@ INCLUDEPATH += $$[MOC_DIR]
 
 LIBS += -L.. -lPGL
 LIBS += -L.. -lPetMesh
-
-
- 

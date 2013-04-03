@@ -143,6 +143,31 @@ bool PetMesh::save(QString filename)
     return OpenMesh::IO::write_mesh(*this, filename.toStdString());
 }
 
+
+bool PetMesh::dumpToCSV(QString filename)
+{
+    ofstream of;
+    of.open(filename.toStdString().data(), ios_base::out);
+    if (!of.is_open()) return false;
+    PetMesh::FaceIter f_it(this->faces_begin()), f_end(this->faces_end());
+    PetMesh::FaceHalfedgeIter h_it;
+    PetMesh::Point p;
+    for (; f_it != f_end; ++f_it)
+    {
+        h_it = this->fh_iter(f_it);
+        p = this->point(this->from_vertex_handle(h_it.handle()));
+        of << p[0] << ',' << p[1] << ',' << p[2] << std::endl;
+        for (; h_it; ++h_it)
+        {
+            p = this->point(this->to_vertex_handle(h_it.handle()));
+            of << p[0] << ',' << p[1] << ',' << p[2] << std::endl;
+        }
+        of << p[0] << ',' << p[1] << ',' << p[2] << std::endl;
+    }
+    return true;
+}
+
+
 void PetMesh::createVBO()
 {
     glGenBuffers(NUM_BUFFERS, bufferObjs);
