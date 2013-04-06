@@ -19,17 +19,17 @@ OptimizeElastic::OptimizeElastic(Elastic* p) : pElastic(p), vertices(p->vertices
     curve = p->curveToOptimize;
     assert(curve != NULL);
     pOp = &(p->pO);
-    idxMapping.clear();
+    idx_mapping_.clear();
     std::vector<PetCurve::VertexHandle>::const_iterator it = vertices.begin(), it_end = vertices.end();
     PetCurve::VertexHandle v_hnd, v0_hnd, v1_hnd;
     int i = 0;
     for (; it != it_end; ++it)
     {
-        idxMapping.insert(std::map<PetCurve::VertexHandle,int>::value_type(*it, i));
+        idx_mapping_.insert(std::map<PetCurve::VertexHandle,int>::value_type(*it, i));
         ++i;
     }
-    additionalPoints.clear();
-    additionalPoints.push_back(OpenMesh::Vec3d(0,0,0));
+    additional_points_.clear();
+    additional_points_.push_back(OpenMesh::Vec3d(0,0,0));
     std::set<PetCurve::VertexHandle> setvertices(vertices.begin(), vertices.end());
     std::set<PetCurve::VertexHandle>::const_iterator v_hnd_end = setvertices.end();
     PetCurve::CurveIter c_it = curve->faces_begin(), c_end = curve->faces_end();
@@ -49,8 +49,8 @@ OptimizeElastic::OptimizeElastic(Elastic* p) : pElastic(p), vertices(p->vertices
                 p0 = curve->point(v0_hnd);
                 pc = curve->point(v_hnd);
                 edges.push_back(curve->edge_handle(ch_it.handle()));
-                first = insertAdditionalPoint(v0_hnd);
-                second = insertAdditionalPoint(v_hnd);
+                first = InsertAdditionalPoint(v0_hnd);
+                second = InsertAdditionalPoint(v_hnd);
                 idxVertexEdges.push_back(pair<int,int>(first,second));
                 edgesSqLength.push_back((pc - p0).sqrnorm());
             }
@@ -64,11 +64,11 @@ OptimizeElastic::OptimizeElastic(Elastic* p) : pElastic(p), vertices(p->vertices
                 pc = curve->point(v_hnd);
                 p1 = curve->point(v1_hnd);
                 EnergyVertices.push_back(v_hnd);
-                i = insertAdditionalPoint(v0_hnd);
+                i = InsertAdditionalPoint(v0_hnd);
                 idxPrevVertex.push_back(i);
-                i = insertAdditionalPoint(v_hnd);
+                i = InsertAdditionalPoint(v_hnd);
                 idxTheVertex.push_back(i);
-                i = insertAdditionalPoint(v1_hnd);
+                i = InsertAdditionalPoint(v1_hnd);
                 idxNextVertex.push_back(i);
                 VerticesWeight.push_back(((p0 - pc).norm() + (p1 - pc).norm())/2);
                 EdgesLengthProduct.push_back( (p0 - pc).norm() * (p1 - pc).norm());
@@ -81,10 +81,10 @@ OptimizeElastic::OptimizeElastic(Elastic* p) : pElastic(p), vertices(p->vertices
             p_it_end = p->PositionConstraints.end();
     for(; p_it != p_it_end; ++p_it)
     {
-        if (idxMapping.count((*p_it).first) && idxMapping[(*p_it).first] >= 0)
+        if (idx_mapping_.count((*p_it).first) && idx_mapping_[(*p_it).first] >= 0)
         {
             positions.push_back((*p_it).second);
-            PositionConstraints.push_back(idxMapping[(*p_it).first]);
+            PositionConstraints.push_back(idx_mapping_[(*p_it).first]);
         }
     }
     Point p0d, p1d, pcd;
@@ -95,10 +95,10 @@ OptimizeElastic::OptimizeElastic(Elastic* p) : pElastic(p), vertices(p->vertices
         tmp_e_hnd = curve->halfedge_handle(t_it->first, 0);
         v0_hnd = curve->from_vertex_handle(tmp_e_hnd);
         v1_hnd = curve->to_vertex_handle(tmp_e_hnd);
-        if ((idxMapping.count(v0_hnd) && idxMapping[v0_hnd] >= 0) || (idxMapping.count(v1_hnd) && idxMapping[v1_hnd] >= 0))
+        if ((idx_mapping_.count(v0_hnd) && idx_mapping_[v0_hnd] >= 0) || (idx_mapping_.count(v1_hnd) && idx_mapping_[v1_hnd] >= 0))
         {
-            first = insertAdditionalPoint(v0_hnd);
-            second = insertAdditionalPoint(v1_hnd);
+            first = InsertAdditionalPoint(v0_hnd);
+            second = InsertAdditionalPoint(v1_hnd);
             p0d = curve->point(v0_hnd);
             p1d = curve->point(v1_hnd);
             tmp = (p1d - p0d).norm();
@@ -113,48 +113,19 @@ OptimizeElastic::OptimizeElastic(Elastic* p) : pElastic(p), vertices(p->vertices
     i = 0;
     for (; i < end; ++i)
     {
-        if (idxMapping.count(p->PlaneConstraints[i]) && idxMapping[p->PlaneConstraints[i]] >= 0)
+        if (idx_mapping_.count(p->PlaneConstraints[i]) && idx_mapping_[p->PlaneConstraints[i]] >= 0)
         {
             tmp = p->PlaneConstraintsInfo[i].first.norm();
             PlaneConstraintsInfo.push_back(pair<Point, double>(p->PlaneConstraintsInfo[i].first / tmp,
                                                           p->PlaneConstraintsInfo[i].second / tmp));
-            PlaneConstraints.push_back(idxMapping[p->PlaneConstraints[i]]);
+            PlaneConstraints.push_back(idx_mapping_[p->PlaneConstraints[i]]);
         }
     }
 
-    // material frames at two ends
-    material_frames_at_ends_.first = p->MaterialFrameConstraints[0];
-    material_frames_at_ends_.second = p->MaterialFrameConstraints[1];
-    c_it = curve->faces_begin(), c_end = curve->faces_end();
-    for (; c_it != c_end; ++c_it)
-    {
-        ch_it = curve->fh_iter(c_it.handle());
-        PetCurve::CurveHalfedgeIter tmp_ch_it = ch_it;
-        while (ch_it && !curve->property(curve->isCurveHalfEdge, ch_it.handle()))
-        {
-            ++ch_it;
-        }
-        halfedge_at_ends_.first = ch_it.handle();
-        while (ch_it && curve->property(curve->isCurveHalfEdge, ch_it.handle()))
-        {
-            tmp_ch_it = ch_it;
-            ++ch_it;
-        }
-        halfedge_at_ends_.second = tmp_ch_it.handle();
-        if(curve->next_halfedge_handle(tmp_ch_it) == halfedge_at_ends_.first)
-        {
-            halfedge_at_ends_.second = halfedge_at_ends_.first;
-        }
-    }
-    RectifyMaterialFrameAtEnds(halfedge_at_ends_.first, material_frames_at_ends_.first);
-    RectifyMaterialFrameAtEnds(halfedge_at_ends_.second, material_frames_at_ends_.second);
-    p0 = curve->point(curve->from_vertex_handle(halfedge_at_ends_.first));
-    p1 = curve->point(curve->to_vertex_handle(halfedge_at_ends_.first));
-    previous_end_positions_.first = p1 - p0;
-    p0 = curve->point(curve->from_vertex_handle(halfedge_at_ends_.second));
-    p1 = curve->point(curve->to_vertex_handle(halfedge_at_ends_.second));
-    previous_end_positions_.second = p1 - p0;
-    c_it = curve->faces_begin(), c_end = curve->faces_end();
+    // material frames
+    c_it = curve->faces_begin();
+    ch_it = curve->fh_iter(c_it.handle());
+    halfedge_at_end_ = ch_it.handle();
     total_length_ = ComputeTotalLength();
 
     // num of constraints
@@ -170,17 +141,17 @@ OptimizeElastic::~OptimizeElastic()
 
 
 //only cares the additional Point
-int OptimizeElastic::insertAdditionalPoint(const PetCurve::VertexHandle &v_hnd)
+int OptimizeElastic::InsertAdditionalPoint(const PetCurve::VertexHandle &v_hnd)
 {
-    if (idxMapping.count(v_hnd))
+    if (idx_mapping_.count(v_hnd))
     {
-        return idxMapping[v_hnd];
+        return idx_mapping_[v_hnd];
     }
     else
     {
-        int i = -additionalPoints.size();
-        idxMapping.insert(std::map<PetCurve::VertexHandle, int>::value_type(v_hnd,i));
-        additionalPoints.push_back(curve->point(v_hnd));
+        int i = -additional_points_.size();
+        idx_mapping_.insert(std::map<PetCurve::VertexHandle, int>::value_type(v_hnd,i));
+        additional_points_.push_back(curve->point(v_hnd));
         return i;
     }
 }
@@ -244,15 +215,9 @@ bool OptimizeElastic::get_starting_point(Ipopt::Index n, bool init_x, Ipopt::Num
         px(i,1) = point[1];
         px(i,2) = point[2];
     }
-    Point t1 = ComputeEdge(halfedge_at_ends_.first, x);
-    t1 /= t1.norm();
-    Point t2 = ComputeEdge(halfedge_at_ends_.second, x);
-    t2 /= t2.norm();
-
-    bishop_at_end_ = ComputeParallelTransportation(x);
-    point = ComputeEdge(halfedge_at_ends_.second, x);
-    difference_material_frame_ = ComputeDifferenceAngle(point, material_frames_at_ends_.second, bishop_at_end_);
-    difference_material_frame_ -= pOp->twisting_times * 2 * M_PI;
+    twist_times_ = pOp->twisting_times;
+    writhe_number_ = ComputeWritheFraction(x);
+    writhe_number_ += twist_times_ * 2 * M_PI;
     return true;
 }
 
@@ -260,7 +225,7 @@ bool OptimizeElastic::get_starting_point(Ipopt::Index n, bool init_x, Ipopt::Num
 bool OptimizeElastic::eval_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt::Number &obj_value)
 {
     UNUSED(n);
-    if (new_x && !updateCross(x)) return false;
+    if (new_x && !updateCross(x) && !ComputeWritheNumber(x)) return false;
     obj_value = 0;
     PointArray px = PointArray(x);
     Ipopt::Number t[3];
@@ -273,10 +238,8 @@ bool OptimizeElastic::eval_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x,
     }
     obj_value *= 2 * pOp->BendingEnergyCoef;
 
-    UpdateBishopFrameAtEnd(x);
-    Point reference = ComputeParallelTransportation(x);
-    difference_material_frame_ += ComputeDifferenceAngle(reference, x);
-    obj_value += pOp->TwistingEnergyCoef * difference_material_frame_ * difference_material_frame_ / total_length_;
+    ComputeWritheNumber(x);
+    obj_value += pOp->TwistingEnergyCoef * writhe_number_ * writhe_number_ / total_length_;
 
     i = 0;
     size = PositionConstraints.size();
@@ -314,7 +277,7 @@ bool OptimizeElastic::eval_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x,
 bool OptimizeElastic::eval_grad_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt::Number *grad_f)
 {
     assert(n == n_variables);
-    if (new_x && !updateCross(x)) return false;
+    if (new_x && !updateCross(x) && !ComputeWritheNumber(x)) return false;
     Ipopt::Number t1[3], t2[3], t[3], e[3], f[3], tmp;
     Ipopt::Number* pV;
     PointArrayEdit pf = grad_f;
@@ -344,30 +307,30 @@ bool OptimizeElastic::eval_grad_f(Ipopt::Index n, const Ipopt::Number *x, bool n
         }
     }
 
-    PetCurve::HalfedgeHandle h_hnd_e = halfedge_at_ends_.first;
+    PetCurve::HalfedgeHandle h_hnd_e = halfedge_at_end_;
     PetCurve::HalfedgeHandle h_hnd_f = curve->next_halfedge_handle(h_hnd_e);
     Point E, F, G;
-    while (h_hnd_e != halfedge_at_ends_.second)
+    while (h_hnd_e != halfedge_at_end_)
     {
         E = ComputeEdge(h_hnd_e, x);
         F = ComputeEdge(h_hnd_f, x);
-        idx = insertAdditionalPoint(curve->from_vertex_handle(h_hnd_e));
+        idx = InsertAdditionalPoint(curve->from_vertex_handle(h_hnd_e));
         if (idx >= 0)
         {
             G = ComputeTwistGradient(E, F, 0);
-            multiplyByScaleTo(G.data(), -2 * difference_material_frame_ / total_length_, pf(idx));
+            multiplyByScaleTo(G.data(), -2 * writhe_number_ / total_length_, pf(idx));
         }
-        idx = insertAdditionalPoint(curve->to_vertex_handle(h_hnd_e));
+        idx = InsertAdditionalPoint(curve->to_vertex_handle(h_hnd_e));
         if (idx >= 0)
         {
             G = ComputeTwistGradient(E, F, 1);
-            multiplyByScaleTo(G.data(), -2 * difference_material_frame_ / total_length_, pf(idx));
+            multiplyByScaleTo(G.data(), -2 * writhe_number_ / total_length_, pf(idx));
         }
-        idx = insertAdditionalPoint(curve->to_vertex_handle(h_hnd_f));
+        idx = InsertAdditionalPoint(curve->to_vertex_handle(h_hnd_f));
         if (idx >= 0)
         {
             G = ComputeTwistGradient(E, F, 2);
-            multiplyByScaleTo(G.data(), -2 * difference_material_frame_ / total_length_, pf(idx));
+            multiplyByScaleTo(G.data(), -2 * writhe_number_ / total_length_, pf(idx));
         }
         h_hnd_e = h_hnd_f;
         h_hnd_f = curve->next_halfedge_handle(h_hnd_e);
@@ -412,7 +375,7 @@ bool OptimizeElastic::eval_g(Ipopt::Index n, const Ipopt::Number *x, bool new_x,
 {
     UNUSED(n);
     UNUSED(m);
-    if (new_x && !updateCross(x)) return false;
+    if (new_x && !updateCross(x) && !ComputeWritheNumber(x)) return false;
     int i = 0, size = edges.size();
     for (; i < size; i++)
         g[i] = computeEdgeLength(i, x);
@@ -431,7 +394,7 @@ bool OptimizeElastic::eval_jac_g(Ipopt::Index n, const Ipopt::Number *x, bool ne
 {
     UNUSED(n);
     UNUSED(m);
-    if (new_x && !updateCross(x)) return false;
+    if (new_x && !updateCross(x) && !ComputeWritheNumber(x)) return false;
     Ipopt::Number e[3];
     int idx_nv, idx_pv;
     int idx = 0;
@@ -520,7 +483,7 @@ bool OptimizeElastic::eval_h(Ipopt::Index n, const Ipopt::Number *x,
     UNUSED(n);
     UNUSED(m);
     UNUSED(new_lambda);
-    if (new_x && !updateCross(x)) return false;
+    if (new_x && !updateCross(x) && !ComputeWritheNumber(x)) return false;
     int idx_pv, idx_nv, idx_cv;
     Ipopt::Number e[3];
     int i = 0;
@@ -641,10 +604,10 @@ bool OptimizeElastic::eval_h(Ipopt::Index n, const Ipopt::Number *x,
         int base = edges.size();
         for (; i < size; ++i)
         {
-            int p0_idx = insertAdditionalPoint(curve->from_vertex_handle(crosses[i].first));
-            int p1_idx = insertAdditionalPoint(curve->to_vertex_handle(crosses[i].first));
-            int q0_idx = insertAdditionalPoint(curve->from_vertex_handle(crosses[i].second));
-            int q1_idx = insertAdditionalPoint(curve->to_vertex_handle(crosses[i].second));
+            int p0_idx = InsertAdditionalPoint(curve->from_vertex_handle(crosses[i].first));
+            int p1_idx = InsertAdditionalPoint(curve->to_vertex_handle(crosses[i].first));
+            int q0_idx = InsertAdditionalPoint(curve->from_vertex_handle(crosses[i].second));
+            int q1_idx = InsertAdditionalPoint(curve->to_vertex_handle(crosses[i].second));
             Point p0 = getPoint(p0_idx, x);
             Point p1 = getPoint(p1_idx, x);
             Point q0 = getPoint(q0_idx, x);
@@ -687,7 +650,7 @@ bool OptimizeElastic::eval_h(Ipopt::Index n, const Ipopt::Number *x,
             }
         }
         // twisting energy
-        AddHessianTwistingStep1(values, x, 2 * pOp->TwistingEnergyCoef * difference_material_frame_ * obj_factor / total_length_);
+        AddHessianTwistingStep1(values, x, 2 * pOp->TwistingEnergyCoef * writhe_number_ * obj_factor / total_length_);
         AddHessianTwistingStep2(values, x, -2 * pOp->TwistingEnergyCoef * obj_factor / total_length_);
     }
     return true;
@@ -870,10 +833,10 @@ void OptimizeElastic::ComputeGradientCross(const int idx_cross, int &idx, double
                     |/ \
                    q0-  p1
     ------------------------------------------*/
-    int idx_p0 = insertAdditionalPoint(curve->from_vertex_handle(crosses[idx_cross].first));
-    int idx_p1 = insertAdditionalPoint(curve->to_vertex_handle(crosses[idx_cross].first));
-    int idx_q0 = insertAdditionalPoint(curve->from_vertex_handle(crosses[idx_cross].second));
-    int idx_q1 = insertAdditionalPoint(curve->to_vertex_handle(crosses[idx_cross].second));
+    int idx_p0 = InsertAdditionalPoint(curve->from_vertex_handle(crosses[idx_cross].first));
+    int idx_p1 = InsertAdditionalPoint(curve->to_vertex_handle(crosses[idx_cross].first));
+    int idx_q0 = InsertAdditionalPoint(curve->from_vertex_handle(crosses[idx_cross].second));
+    int idx_q1 = InsertAdditionalPoint(curve->to_vertex_handle(crosses[idx_cross].second));
     Point p0 = getPoint(idx_p0, x);
     Point q0 = getPoint(idx_q0, x);
     Point p1 = getPoint(idx_p1, x);
@@ -955,7 +918,7 @@ const Ipopt::Number* OptimizeElastic::EdgePrevVertex(int i, const Ipopt::Number 
     if (idx >= 0)
         return x + idx * 3;
     else
-        return additionalPoints[-idx].data();
+        return additional_points_[-idx].data();
 }
 
 const Ipopt::Number* OptimizeElastic::EdgeNextVertex(int i, const Ipopt::Number *x)
@@ -964,7 +927,7 @@ const Ipopt::Number* OptimizeElastic::EdgeNextVertex(int i, const Ipopt::Number 
     if (idx >= 0)
         return x + idx * 3;
     else
-        return additionalPoints[-idx].data();
+        return additional_points_[-idx].data();
 }
 
 const Ipopt::Number* OptimizeElastic::TangentPrevVertex(int i, const Ipopt::Number *x)
@@ -973,7 +936,7 @@ const Ipopt::Number* OptimizeElastic::TangentPrevVertex(int i, const Ipopt::Numb
     if (idx >= 0)
         return x + 3 * idx;
     else
-        return additionalPoints[-idx].data();
+        return additional_points_[-idx].data();
 }
 
 const Ipopt::Number* OptimizeElastic::TangentNextVertex(int i, const Ipopt::Number *x)
@@ -982,7 +945,7 @@ const Ipopt::Number* OptimizeElastic::TangentNextVertex(int i, const Ipopt::Numb
     if (idx >= 0)
         return x + 3 * idx;
     else
-        return additionalPoints[-idx].data();
+        return additional_points_[-idx].data();
 }
 
 
@@ -991,7 +954,7 @@ PetCurve::Point OptimizeElastic::getPoint(const int i, const double* x)
     if (i >= 0)
         return PetCurve::Point(x + 3 * i);
     else
-        return additionalPoints[-i];
+        return additional_points_[-i];
 }
 
 
@@ -1262,7 +1225,7 @@ inline const Ipopt::Number* OptimizeElastic::prevVertices(const int i, const Ipo
     if (idx >= 0)
         return x + idx * 3;
     else
-        return (additionalPoints[-idx]).data();
+        return (additional_points_[-idx]).data();
 }
 
 inline const Ipopt::Number* OptimizeElastic::theVertices(const int i, const Ipopt::Number *x)
@@ -1271,7 +1234,7 @@ inline const Ipopt::Number* OptimizeElastic::theVertices(const int i, const Ipop
     if (idx >= 0)
         return x + idx * 3;
     else
-        return (additionalPoints[-idx]).data();
+        return (additional_points_[-idx]).data();
 }
 
 inline const Ipopt::Number* OptimizeElastic::nextVertices(const int i, const Ipopt::Number *x)
@@ -1280,7 +1243,7 @@ inline const Ipopt::Number* OptimizeElastic::nextVertices(const int i, const Ipo
     if (idx >= 0)
         return x + idx * 3;
     else
-        return (additionalPoints[-idx]).data();
+        return (additional_points_[-idx]).data();
 }
 inline void OptimizeElastic::multiplyByScale(Ipopt::Number *x, Ipopt::Number dn)
 {
@@ -1397,10 +1360,10 @@ double OptimizeElastic::LineSegmentsSqDistance(const PetCurve::HalfedgeHandle& h
             p3(curve->from_vertex_handle(he_j)),
             p4(curve->to_vertex_handle(he_j));
     return LineSegmentsSqDistance(
-                getPoint(insertAdditionalPoint(p1), x),
-                getPoint(insertAdditionalPoint(p2), x),
-                getPoint(insertAdditionalPoint(p3), x),
-                getPoint(insertAdditionalPoint(p4), x));
+                getPoint(InsertAdditionalPoint(p1), x),
+                getPoint(InsertAdditionalPoint(p2), x),
+                getPoint(InsertAdditionalPoint(p3), x),
+                getPoint(InsertAdditionalPoint(p4), x));
 }
 
 
@@ -1543,36 +1506,36 @@ void OptimizeElastic::EdgesIntersections()
         deque<int> E, F;
         v0 = curve->from_vertex_handle((*it_cross).first);
         v1 = curve->to_vertex_handle((*it_cross).first);
-        from = insertAdditionalPoint(v0);
-        to = insertAdditionalPoint(v1);
+        from = InsertAdditionalPoint(v0);
+        to = InsertAdditionalPoint(v1);
         E.push_back(from);
         E.push_back(to);
         he2_hnd = he_hnd = (*it_cross).first;
         for (int i = 0; i <= pOp->extension; ++i)
         {
             he_hnd = curve->next_halfedge_handle(he_hnd);
-            to = insertAdditionalPoint(curve->to_vertex_handle(he_hnd));
+            to = InsertAdditionalPoint(curve->to_vertex_handle(he_hnd));
             E.push_back(to);
             he2_hnd = curve->prev_halfedge_handle(he2_hnd);
-            from = insertAdditionalPoint(curve->from_vertex_handle(he2_hnd));
+            from = InsertAdditionalPoint(curve->from_vertex_handle(he2_hnd));
             E.push_front(from);
         }
         crossE.push_back(E);
 
         v0 = curve->from_vertex_handle((*it_cross).second);
         v1 = curve->to_vertex_handle((*it_cross).second);
-        from = insertAdditionalPoint(v0);
-        to = insertAdditionalPoint(v1);
+        from = InsertAdditionalPoint(v0);
+        to = InsertAdditionalPoint(v1);
         F.push_back(from);
         F.push_back(to);
         he2_hnd = he_hnd = (*it_cross).second;
         for (int i = 0; i <= pOp->extension; ++i)
         {
             he_hnd = curve->next_halfedge_handle(he_hnd);
-            to = insertAdditionalPoint(curve->to_vertex_handle(he_hnd));
+            to = InsertAdditionalPoint(curve->to_vertex_handle(he_hnd));
             F.push_back(to);
             he2_hnd = curve->prev_halfedge_handle(he2_hnd);
-            from = insertAdditionalPoint(curve->from_vertex_handle(he2_hnd));
+            from = InsertAdditionalPoint(curve->from_vertex_handle(he2_hnd));
             F.push_front(from);
         }
         crossF.push_back(F);
@@ -1612,48 +1575,27 @@ bool OptimizeElastic::updateCross(const double* x)
 }
 
 
-void OptimizeElastic::RectifyMaterialFrameAtEnds(const PetCurve::HalfedgeHandle &h_hnd, Point &p)
+OptimizeElastic::Point OptimizeElastic::FindPerpendicularVec(const PetCurve::HalfedgeHandle &h_hnd, const double *x, Point p)
 {
+
     Point p0, p1, t;
-    p0 = curve->point(curve->from_vertex_handle(h_hnd));
-    p1 = curve->point(curve->to_vertex_handle(h_hnd));
+    p0 = getPoint(InsertAdditionalPoint(curve->from_vertex_handle(h_hnd)), x);
+    p1 = getPoint(InsertAdditionalPoint(curve->to_vertex_handle(h_hnd)), x);
     t = p1 - p0;
     t /= t.norm();
     double tmp = t | p;
     p = p - tmp * t;
-    p /= p.norm();
-}
-
-
-void OptimizeElastic::UpdateMaterialFrameAtEnds(const double *x)
-{
-    int idx0 = insertAdditionalPoint(curve->from_vertex_handle(halfedge_at_ends_.first));
-    int idx1 = insertAdditionalPoint(curve->to_vertex_handle(halfedge_at_ends_.first));
-    Point p0 = getPoint(idx0 ,x);
-    Point p1 = getPoint(idx1, x);
-    material_frames_at_ends_.first = ParallelTransportation(previous_end_positions_.first, p1 - p0, material_frames_at_ends_.first);
-    idx0 = insertAdditionalPoint(curve->from_vertex_handle(halfedge_at_ends_.first));
-    idx1 = insertAdditionalPoint(curve->to_vertex_handle(halfedge_at_ends_.first));
-    p0 = getPoint(idx0 ,x);
-    p1 = getPoint(idx1, x);
-    material_frames_at_ends_.second = ParallelTransportation(previous_end_positions_.second, p1 - p0, material_frames_at_ends_.second);
-}
-
-
-void OptimizeElastic::UpdateBishopFrameAtEnd(const double *x)
-{
-    int idx0 = insertAdditionalPoint(curve->from_vertex_handle(halfedge_at_ends_.second));
-    int idx1 = insertAdditionalPoint(curve->to_vertex_handle(halfedge_at_ends_.second));
-    Point p0 = getPoint(idx0 ,x);
-    Point p1 = getPoint(idx1, x);
-    bishop_at_end_ = ParallelTransportation(previous_end_positions_.second, p1 - p0, bishop_at_end_);
+    if (p.norm() == 0)
+        return FindPerpendicularVec(h_hnd, x, Point(1,0,0));
+    else
+        return p /= p.norm();
 }
 
 
 OptimizeElastic::Point OptimizeElastic::ComputeEdge(const PetCurve::HalfedgeHandle &h_hnd, const Ipopt::Number *x)
 {
-    int idx0 = insertAdditionalPoint(curve->from_vertex_handle(h_hnd));
-    int idx1 = insertAdditionalPoint(curve->to_vertex_handle(h_hnd));
+    int idx0 = InsertAdditionalPoint(curve->from_vertex_handle(h_hnd));
+    int idx1 = InsertAdditionalPoint(curve->to_vertex_handle(h_hnd));
     Point p0 = getPoint(idx0 ,x);
     Point p1 = getPoint(idx1, x);
     return p1 - p0;
@@ -1681,20 +1623,26 @@ OptimizeElastic::Point OptimizeElastic::ParallelTransportation(Point t1, Point t
 }
 
 
-OptimizeElastic::Point OptimizeElastic::ComputeParallelTransportation(const double *x)
+OptimizeElastic::Point OptimizeElastic::ComputeParallelTransportation(Point v, const double *x)
 {
-    PetCurve::HalfedgeHandle h_hnd = halfedge_at_ends_.first;
-    PetCurve::HalfedgeHandle tmp_h_hnd = curve->next_halfedge_handle(h_hnd);
-    Point v = material_frames_at_ends_.first;
-    while (h_hnd != halfedge_at_ends_.second)
+    PetCurve::HalfedgeHandle h_hnd = halfedge_at_end_;
+    Point t1, t2;
+    while (h_hnd != halfedge_at_end_)
     {
-        Point t1 = ComputeEdge(h_hnd, x);
-        Point t2 = ComputeEdge(tmp_h_hnd, x);
+        t1 = ComputeEdge(h_hnd, x);
+        h_hnd = curve->next_halfedge_handle(h_hnd);
+        t2 = ComputeEdge(h_hnd, x);
         v = ParallelTransportation(t1, t2, v);
-        h_hnd = tmp_h_hnd;
-        tmp_h_hnd = curve->next_halfedge_handle(h_hnd);
     }
     return v;
+}
+
+
+double OptimizeElastic::ComputeWritheFraction(const double *x)
+{
+    Point v = FindPerpendicularVec(halfedge_at_end_, x);
+    Point w = ComputeParallelTransportation(v, x);
+    return ComputeDifferenceAngle(ComputeEdge(halfedge_at_end_, x), v, w);
 }
 
 
@@ -1706,13 +1654,6 @@ double OptimizeElastic::ComputeDifferenceAngle(const Point &axis, const Point &u
     double pr_y = normal | x;
     double pr_x = up_normed | x;
     return atan2(pr_y, pr_x);
-}
-
-
-double OptimizeElastic::ComputeDifferenceAngle(Point r ,const double *x)
-{
-    Point point = ComputeEdge(halfedge_at_ends_.second, x);
-    return ComputeDifferenceAngle(point, bishop_at_end_, r);
 }
 
 
@@ -1937,33 +1878,34 @@ void OptimizeElastic::AddHessianCrossing(const int row, const int col, const Poi
 
 void OptimizeElastic::AddHessianTwistingStep1(double *values, const double *x, const double coef)
 {
-    PetCurve::HalfedgeHandle he_hnd = halfedge_at_ends_.first;
+    PetCurve::HalfedgeHandle he_hnd = halfedge_at_end_;
     PetCurve::VertexHandle pv, pc, pn;
     Point e, f, P(0,0,0), Q(0,0,0);
     int idx_pv, idx_pc, idx_pn;
     std::vector<Eigen::Vector3d> gradients(vertices.size(), Eigen::Vector3d(0,0,0));
-    while (he_hnd != halfedge_at_ends_.second)
+    while (he_hnd != halfedge_at_end_)
     {
         pv = curve->from_vertex_handle(he_hnd);
         pc = curve->to_vertex_handle(he_hnd);
         he_hnd = curve->next_halfedge_handle(he_hnd);
         pn = curve->to_vertex_handle(he_hnd);
-        idx_pv = insertAdditionalPoint(pv);
-        idx_pc = insertAdditionalPoint(pc);
-        idx_pn = insertAdditionalPoint(pn);
+        idx_pv = InsertAdditionalPoint(pv);
+        idx_pc = InsertAdditionalPoint(pc);
+        idx_pn = InsertAdditionalPoint(pn);
+        Eigen::Vector3d Kb = Eigen::Vector3d((ComputeKb(e,f)).data());
         e = getPoint(idx_pc, x) - getPoint(idx_pv, x);
         f = getPoint(idx_pn, x) - getPoint(idx_pc, x);
         if (idx_pv >= 0)
         {
-            gradients[idx_pv] += Eigen::Vector3d((ComputeKb(e,f)).data()) / (2 * e.norm());
+            gradients[idx_pv] += Kb / (2 * e.norm());
         }
         if (idx_pn >= 0)
         {
-            gradients[idx_pn] += Eigen::Vector3d((ComputeKb(e,f)).data()) / (2 * f.norm());
+            gradients[idx_pn] += Kb / (-2 * f.norm());
         }
         if (idx_pc >= 0)
         {
-            gradients[idx_pc] += Eigen::Vector3d((ComputeKb(e, f)).data()) * (-1 / (2 * e.norm()) + 1 / (2 * f.norm()));
+            gradients[idx_pc] += Kb * (-1 / (2 * e.norm()) + 1 / (2 * f.norm()));
         }
     }
     for (unsigned int i = 0; i < vertices.size(); ++i)
@@ -1978,44 +1920,64 @@ void OptimizeElastic::AddHessianTwistingStep1(double *values, const double *x, c
 
 void OptimizeElastic::AddHessianTwistingStep2(double *values, const double *x, const double coef)
 {
-    PetCurve::HalfedgeHandle he_hnd = halfedge_at_ends_.first;
+    PetCurve::HalfedgeHandle he_hnd = halfedge_at_end_;
     PetCurve::VertexHandle pv, pc, pn;
     Point e, f;
     int idx_pv, idx_pc, idx_pn;
-    while (he_hnd != halfedge_at_ends_.second)
+    while (he_hnd != halfedge_at_end_)
     {
         pv = curve->from_vertex_handle(he_hnd);
         pc = curve->to_vertex_handle(he_hnd);
         he_hnd = curve->next_halfedge_handle(he_hnd);
         pn = curve->to_vertex_handle(he_hnd);
-        idx_pv = insertAdditionalPoint(pv);
-        idx_pc = insertAdditionalPoint(pc);
-        idx_pn = insertAdditionalPoint(pn);
+        idx_pv = InsertAdditionalPoint(pv);
+        idx_pc = InsertAdditionalPoint(pc);
+        idx_pn = InsertAdditionalPoint(pn);
         e = getPoint(idx_pc, x) - getPoint(idx_pv, x);
         f = getPoint(idx_pn, x) - getPoint(idx_pc, x);
+        Matrix3 m;
+        Vector3 g = Vector3(ComputeKb(e, f).data());
+        Vector3 ve = Vector3(e.data());
+        Vector3 vf = Vector3(f.data());
         if (idx_pv >= 0)
         {
-            AddHessianAtEntries(idx_pv, idx_pv, values, ComputeGradientKb(e, f, -1) * (coef / (2 * e.norm())));
-            if (idx_pc > idx_pv)
-                AddHessianAtEntries(idx_pc, idx_pv, values, ComputeGradientKb(e, f, -1) * (coef * (-1 / (2 * e.norm()) + 1 / (2 * f.norm()))));
-            if (idx_pn > idx_pv)
-                AddHessianAtEntries(idx_pn, idx_pv, values, ComputeGradientKb(e, f, -1) * (coef / (2 * f.norm())));
+            m = ComputeGradientKb(e, f, -1);
+            AddHessianAtEntries(idx_pv, idx_pv, values,
+                                m * (coef / (2 * e.norm())) + g * coef * ve.transpose() / 2 / pow(e.norm(),3)); // H_(i-1)(i-1)
+            if (idx_pc > idx_pv) // H_(i-1)(i)
+                AddHessianAtEntries(idx_pc, idx_pv, values,
+                                    m * (coef * (-1 / (2 * e.norm()) + 1 / (2 * f.norm())))
+                                    - g * coef * ve.transpose() / 2 / pow(e.norm(),3));
+            if (idx_pn > idx_pv) // H_(i-1)(i+1)
+                AddHessianAtEntries(idx_pn, idx_pv, values, m * (coef / (-2 * f.norm())));
         }
         if (idx_pn >= 0)
         {
-            AddHessianAtEntries(idx_pn, idx_pn, values, ComputeGradientKb(e, f, 1) * (coef / (2 * f.norm())));
-            if (idx_pv > idx_pn)
-                AddHessianAtEntries(idx_pv, idx_pn, values, ComputeGradientKb(e, f, 1) * (coef / (2 * e.norm())));
-            if (idx_pc > idx_pn)
-                AddHessianAtEntries(idx_pc, idx_pn, values, ComputeGradientKb(e, f, 1) * (coef * (-1 / (2 * e.norm()) + 1 / (2 * f.norm()))));
+            m = ComputeGradientKb(e, f, 1);
+            AddHessianAtEntries(idx_pn, idx_pn, values,
+                                m * (coef / (-2 * f.norm())) + g * coef * vf.transpose() / 2 / pow(f.norm(),3));  // H_(i+1)(i+1)
+            if (idx_pv > idx_pn) // H_(i+1)(i-1)
+                AddHessianAtEntries(idx_pv, idx_pn, values, m * (coef / (2 * e.norm())));
+            if (idx_pc > idx_pn) // H_(i+1)(i)
+                AddHessianAtEntries(idx_pc, idx_pn, values,
+                                    m * (coef * (-1 / (2 * e.norm()) + 1 / (2 * f.norm())))
+                                    - g * coef * vf.transpose() / 2 / pow(f.norm(), 3));
         }
         if (idx_pc >= 0)
         {
-            AddHessianAtEntries(idx_pc, idx_pc, values, ComputeGradientKb(e, f, 0) * (coef * (-1 / (2 * e.norm()) + 1 / (2 * f.norm()))));
-            if (idx_pn > idx_pc)
-                AddHessianAtEntries(idx_pn, idx_pc, values, ComputeGradientKb(e, f, 0) * (coef / (2 * f.norm())));
-            if (idx_pv > idx_pc)
-                AddHessianAtEntries(idx_pv, idx_pc, values, ComputeGradientKb(e, f, 0) * (coef / (2 * e.norm())));
+            m = ComputeGradientKb(e, f, 0);
+            AddHessianAtEntries(idx_pc, idx_pc, values,
+                                m * (coef * (-1 / (2 * e.norm()) + 1 / (2 * f.norm())))
+                                + g * coef * (ve.transpose() / 2 / pow(e.norm(),3)
+                                              + vf.transpose() / 2 / pow(f.norm(),3))); // H_(i)(i)
+            if (idx_pn > idx_pc) // H_(i)(i+1)
+                AddHessianAtEntries(idx_pn, idx_pc, values,
+                                    m * (coef / (-2 * f.norm()))
+                                    - g * coef * vf.transpose() / 2 / pow(f.norm(),3));
+            if (idx_pv > idx_pc) // H_(i)(i-1)
+                AddHessianAtEntries(idx_pv, idx_pc, values,
+                                    m * (coef / (2 * e.norm()))
+                                    - g * coef * ve.transpose() / 2 / pow(e.norm(),3));
         }
     }
 }
@@ -2053,8 +2015,8 @@ double OptimizeElastic::ComputeTotalLength()
 {
     double total_length = 0;
     Point pc, pv, pn;
-    PetCurve::HalfedgeHandle h_hnd = halfedge_at_ends_.first;
-    while (h_hnd != halfedge_at_ends_.second)
+    PetCurve::HalfedgeHandle h_hnd = halfedge_at_end_;
+    while (h_hnd != halfedge_at_end_)
     {
         pv = curve->point(curve->from_vertex_handle(h_hnd));
         pc = curve->point(curve->to_vertex_handle(h_hnd));
@@ -2064,4 +2026,23 @@ double OptimizeElastic::ComputeTotalLength()
         total_length += (pn - pc).norm() / 2;
     }
     return total_length;
+}
+
+
+bool OptimizeElastic::ComputeWritheNumber(const double *x)
+{
+    double writhe_fraction = ComputeWritheFraction(x);
+    double diff = numeric_limits<double>::max();
+    int offset, temp_writhe;
+    for (offset = -1; offset <= 1; ++offset)
+    {
+        if (std::abs(writhe_fraction + (twist_times_ + offset) * 2 * M_PI - writhe_number_) <= diff)
+        {
+            temp_writhe = twist_times_ + offset;
+            diff = std::abs(writhe_fraction + twist_times_ + offset - writhe_number_);
+        }
+    }
+    twist_times_ = temp_writhe;
+    writhe_number_ = writhe_fraction + twist_times_ * 2 * M_PI;
+    return true;
 }

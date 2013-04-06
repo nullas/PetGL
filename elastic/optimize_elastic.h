@@ -41,6 +41,7 @@ public:
     typedef PointArrayEdit_t<Ipopt::Number> PointArrayEdit;
     typedef OpenMesh::Vec3d Point;
     typedef Eigen::Matrix<double, 3, 3, Eigen::RowMajor> Matrix3;
+    typedef typename Eigen::Vector3d Vector3;
 
     OptimizeElastic(Elastic* p);
     ~OptimizeElastic();
@@ -191,19 +192,9 @@ public:
     void AddHessianCrossing(const int row, const int col, const Point &p, double *values);
 
     // material frames
-    void RectifyMaterialFrameAtEnds(const PetCurve::HalfedgeHandle &h_hnd, Point &p);
-
-    void UpdateMaterialFrameAtEnds(const double *x);
-
-    Point ComputeParallelTransportation(const double *x);
-
     Point ParallelTransportation(Point t1, Point t2, const Point &x);
 
     double ComputeDifferenceAngle(const Point &axis, const Point &up, const Point &x);
-
-    double ComputeDifferenceAngle(Point r ,const double *x);
-
-    void UpdateBishopFrameAtEnd(const double *x);
 
     Point ComputeTwistGradient(const Point &E, const Point &F, const int i);
 
@@ -235,6 +226,10 @@ public:
     void AddHessianTwistingStep2(double *values, const double *x, const double coef);
     void AddHessianAtDiagonal(const int i, const int j, double *x, double value);
     double ComputeTotalLength();
+    double ComputeWritheFraction(const double *x);
+    Point ComputeParallelTransportation(Point v, const double *x);
+    Point FindPerpendicularVec(const PetCurve::HalfedgeHandle &h_hnd, const double *x, Point p=Point(0,0,1));
+    bool ComputeWritheNumber(const double *x);
 private:
     Elastic* pElastic;
     PetCurve* curve;
@@ -251,11 +246,11 @@ private:
     std::vector<int> PlaneConstraints;
     std::vector<pair<int,int> > TangentConstraints;
     std::vector<OpenMesh::Vec3d> tangents;
-    std::map<PetCurve::VertexHandle,int> idxMapping;
+    std::map<PetCurve::VertexHandle,int> idx_mapping_;
     std::vector<PetCurve::VertexHandle> EnergyVertices;
     Elastic::pOptimize* pOp;
-    std::vector<OpenMesh::Vec3d> additionalPoints;
-    int insertAdditionalPoint(const PetCurve::VertexHandle& v_hnd);
+    std::vector<OpenMesh::Vec3d> additional_points_;
+    int InsertAdditionalPoint(const PetCurve::VertexHandle& v_hnd);
     std::vector<OpenMesh::Vec3d> positions;
 
     // for crossing
@@ -266,14 +261,10 @@ private:
     int refSize;
 
     // material frame
-    std::pair<Point, Point> material_frames_at_ends_;
-    std::pair<PetCurve::HalfedgeHandle, PetCurve::HalfedgeHandle> halfedge_at_ends_;
-    std::pair<Point, Point> previous_end_positions_;
-    Point previous_bishop_at_end_;
-    Point bishop_at_end_;
-    double difference_material_frame_;
+    int twist_times_;
+    double writhe_number_;
+    PetCurve::HalfedgeHandle halfedge_at_end_;
     double total_length_;
-    std::vector<double> twist_edge_product_;
 };
 
 #endif // OPTIMIZE_ELASITC_H
