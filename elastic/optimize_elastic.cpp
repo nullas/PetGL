@@ -307,10 +307,10 @@ bool OptimizeElastic::eval_grad_f(Ipopt::Index n, const Ipopt::Number *x, bool n
         }
     }
 
-    PetCurve::HalfedgeHandle h_hnd_e = halfedge_at_end_;
+    PetCurve::HalfedgeHandle h_hnd_e = curve->next_halfedge_handle(halfedge_at_end_);
     PetCurve::HalfedgeHandle h_hnd_f = curve->next_halfedge_handle(h_hnd_e);
     Point E, F, G;
-    while (h_hnd_e != halfedge_at_end_)
+    do
     {
         E = ComputeEdge(h_hnd_e, x);
         F = ComputeEdge(h_hnd_f, x);
@@ -335,6 +335,7 @@ bool OptimizeElastic::eval_grad_f(Ipopt::Index n, const Ipopt::Number *x, bool n
         h_hnd_e = h_hnd_f;
         h_hnd_f = curve->next_halfedge_handle(h_hnd_e);
     }
+    while (h_hnd_e != halfedge_at_end_);
 
     i = 0;
     size = PositionConstraints.size();
@@ -650,8 +651,8 @@ bool OptimizeElastic::eval_h(Ipopt::Index n, const Ipopt::Number *x,
             }
         }
         // twisting energy
-        AddHessianTwistingStep1(values, x, 2 * pOp->TwistingEnergyCoef * writhe_number_ * obj_factor / total_length_);
-        AddHessianTwistingStep2(values, x, -2 * pOp->TwistingEnergyCoef * obj_factor / total_length_);
+        AddHessianTwistingStep1(values, x, 2 * pOp->TwistingEnergyCoef * obj_factor / total_length_);
+        AddHessianTwistingStep2(values, x, -2 * pOp->TwistingEnergyCoef * writhe_number_* obj_factor / total_length_);
     }
     return true;
 }
@@ -1627,13 +1628,14 @@ OptimizeElastic::Point OptimizeElastic::ComputeParallelTransportation(Point v, c
 {
     PetCurve::HalfedgeHandle h_hnd = halfedge_at_end_;
     Point t1, t2;
-    while (h_hnd != halfedge_at_end_)
+    do
     {
         t1 = ComputeEdge(h_hnd, x);
         h_hnd = curve->next_halfedge_handle(h_hnd);
         t2 = ComputeEdge(h_hnd, x);
         v = ParallelTransportation(t1, t2, v);
     }
+    while (h_hnd != halfedge_at_end_);
     return v;
 }
 
@@ -1677,7 +1679,7 @@ OptimizeElastic::Point OptimizeElastic::ComputeTwistGradient(const Point &E, con
 
 OptimizeElastic::Point OptimizeElastic::ComputeKb(const Point &E, const Point &F)
 {
-    return (E % F) / (E.norm() * F.norm() + (E | F));
+    return (E % F * 2) / (E.norm() * F.norm() + (E | F));
 }
 
 
@@ -1878,12 +1880,12 @@ void OptimizeElastic::AddHessianCrossing(const int row, const int col, const Poi
 
 void OptimizeElastic::AddHessianTwistingStep1(double *values, const double *x, const double coef)
 {
-    PetCurve::HalfedgeHandle he_hnd = halfedge_at_end_;
+    PetCurve::HalfedgeHandle he_hnd = curve->next_halfedge_handle(halfedge_at_end_);
     PetCurve::VertexHandle pv, pc, pn;
-    Point e, f, P(0,0,0), Q(0,0,0);
+    Point e, f;
     int idx_pv, idx_pc, idx_pn;
     std::vector<Eigen::Vector3d> gradients(vertices.size(), Eigen::Vector3d(0,0,0));
-    while (he_hnd != halfedge_at_end_)
+    do
     {
         pv = curve->from_vertex_handle(he_hnd);
         pc = curve->to_vertex_handle(he_hnd);
@@ -1892,9 +1894,9 @@ void OptimizeElastic::AddHessianTwistingStep1(double *values, const double *x, c
         idx_pv = InsertAdditionalPoint(pv);
         idx_pc = InsertAdditionalPoint(pc);
         idx_pn = InsertAdditionalPoint(pn);
-        Eigen::Vector3d Kb = Eigen::Vector3d((ComputeKb(e,f)).data());
         e = getPoint(idx_pc, x) - getPoint(idx_pv, x);
         f = getPoint(idx_pn, x) - getPoint(idx_pc, x);
+        Eigen::Vector3d Kb = Eigen::Vector3d((ComputeKb(e,f)).data());
         if (idx_pv >= 0)
         {
             gradients[idx_pv] += Kb / (2 * e.norm());
@@ -1908,6 +1910,7 @@ void OptimizeElastic::AddHessianTwistingStep1(double *values, const double *x, c
             gradients[idx_pc] += Kb * (-1 / (2 * e.norm()) + 1 / (2 * f.norm()));
         }
     }
+    while (he_hnd != halfedge_at_end_);
     for (unsigned int i = 0; i < vertices.size(); ++i)
     {
         for (unsigned int j = 0; j <= i; ++j)
@@ -1920,11 +1923,11 @@ void OptimizeElastic::AddHessianTwistingStep1(double *values, const double *x, c
 
 void OptimizeElastic::AddHessianTwistingStep2(double *values, const double *x, const double coef)
 {
-    PetCurve::HalfedgeHandle he_hnd = halfedge_at_end_;
+    PetCurve::HalfedgeHandle he_hnd = curve->next_halfedge_handle(halfedge_at_end_);
     PetCurve::VertexHandle pv, pc, pn;
     Point e, f;
     int idx_pv, idx_pc, idx_pn;
-    while (he_hnd != halfedge_at_end_)
+    do
     {
         pv = curve->from_vertex_handle(he_hnd);
         pc = curve->to_vertex_handle(he_hnd);
@@ -1980,6 +1983,7 @@ void OptimizeElastic::AddHessianTwistingStep2(double *values, const double *x, c
                                     - g * coef * ve.transpose() / 2 / pow(e.norm(),3));
         }
     }
+    while (he_hnd != halfedge_at_end_);
 }
 
 
@@ -2016,7 +2020,7 @@ double OptimizeElastic::ComputeTotalLength()
     double total_length = 0;
     Point pc, pv, pn;
     PetCurve::HalfedgeHandle h_hnd = halfedge_at_end_;
-    while (h_hnd != halfedge_at_end_)
+    do
     {
         pv = curve->point(curve->from_vertex_handle(h_hnd));
         pc = curve->point(curve->to_vertex_handle(h_hnd));
@@ -2025,6 +2029,7 @@ double OptimizeElastic::ComputeTotalLength()
         total_length += (pc - pv).norm() / 2;
         total_length += (pn - pc).norm() / 2;
     }
+    while (h_hnd != halfedge_at_end_);
     return total_length;
 }
 
@@ -2039,7 +2044,7 @@ bool OptimizeElastic::ComputeWritheNumber(const double *x)
         if (std::abs(writhe_fraction + (twist_times_ + offset) * 2 * M_PI - writhe_number_) <= diff)
         {
             temp_writhe = twist_times_ + offset;
-            diff = std::abs(writhe_fraction + twist_times_ + offset - writhe_number_);
+            diff = std::abs(writhe_fraction + (twist_times_ + offset) * 2 * M_PI - writhe_number_);
         }
     }
     twist_times_ = temp_writhe;

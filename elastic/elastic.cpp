@@ -1163,7 +1163,8 @@ void Elastic::on_pushButton_twist_clicked()
         app->Options()->SetStringValue("output_file", "ipopt.out");
         app->Options()->SetNumericValue("point_perturbation_radius", 0.);
         app->Options()->SetStringValue("derivative_test","second-order");
-//        app->Options()->SetStringValue("linear_solver","mumps");
+//        app->Options()->SetStringValue("hessian_approximation", "limited-memory");
+        app->Options()->SetStringValue("linear_solver","mumps");
 
         Ipopt::ApplicationReturnStatus status;
         status = app->Initialize();
