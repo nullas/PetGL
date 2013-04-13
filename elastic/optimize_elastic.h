@@ -230,6 +230,7 @@ public:
     Point ComputeParallelTransportation(Point v, const double *x);
     Point FindPerpendicularVec(const PetCurve::HalfedgeHandle &h_hnd, const double *x, Point p=Point(0,0,1));
     bool ComputeWritheNumber(const double *x);
+    double ComputeWritheFractionByArea(const double *x);
 private:
     Elastic* pElastic;
     PetCurve* curve;

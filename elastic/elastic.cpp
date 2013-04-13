@@ -8,7 +8,6 @@
 
 #include <QGLViewer/qglviewer.h>
 
-#include "coin/IpIpoptApplication.hpp"
 #include "optimize.h"
 #include "optimize_elastic.h"
 #include "ui_elasticpanel.h"
@@ -938,8 +937,9 @@ void Elastic::on_pushButton_doItRightIter_clicked()
         app->Options()->SetStringValue("mu_strategy", "adaptive");
         app->Options()->SetStringValue("output_file", "ipopt.out");
         app->Options()->SetNumericValue("point_perturbation_radius", 0.);
-    //    app->Options()->SetStringVaue("derivative_test","second-order");
-    //    app->Options()->SetStringValue("linear_solver","ma57");
+//        app->Options()->SetStringVaue("derivative_test","second-order");
+//        app->Options()->SetStringValue("hessian_approximation", "limited-memory");
+        app->Options()->SetStringValue("linear_solver","mumps");
 
         Ipopt::ApplicationReturnStatus status;
         status = app->Initialize();
@@ -1158,13 +1158,7 @@ void Elastic::on_pushButton_twist_clicked()
         Ipopt::SmartPtr<Ipopt::TNLP> mynlp = new OptimizeElastic(this);
         Ipopt::SmartPtr<Ipopt::IpoptApplication> app = IpoptApplicationFactory();
 
-        app->Options()->SetNumericValue("tol", 1e-7);
-        app->Options()->SetStringValue("mu_strategy", "adaptive");
-        app->Options()->SetStringValue("output_file", "ipopt.out");
-        app->Options()->SetNumericValue("point_perturbation_radius", 0.);
-        app->Options()->SetStringValue("derivative_test","second-order");
-//        app->Options()->SetStringValue("hessian_approximation", "limited-memory");
-        app->Options()->SetStringValue("linear_solver","mumps");
+        SetupIpoptOptions(app);
 
         Ipopt::ApplicationReturnStatus status;
         status = app->Initialize();
@@ -1203,4 +1197,22 @@ void Elastic::on_doubleSpinBox_TwistingEnergyCoef_editingFinished()
 void Elastic::on_spinBox_twist_times_editingFinished()
 {
     pO.twisting_times = ui->spinBox_twist_times->value();
+}
+
+
+void Elastic::SetupIpoptOptions(Ipopt::SmartPtr<Ipopt::IpoptApplication> &app)
+{
+    app->Options()->SetNumericValue("tol", 1e-7);
+    app->Options()->SetStringValue("mu_strategy", "adaptive");
+    app->Options()->SetStringValue("output_file", "ipopt.out");
+    app->Options()->SetNumericValue("point_perturbation_radius", 0.);
+    if (this->ui->checkBox_derivativesCheck->isChecked())
+        app->Options()->SetStringValue("derivative_test","second-order");
+    if (this->ui->checkBox_hessianApprox->isChecked())
+        app->Options()->SetStringValue("hessian_approximation", "limited-memory");
+    if (this->ui->radioButton_solverMumps->isChecked())
+        app->Options()->SetStringValue("linear_solver","mumps");
+    if (this->ui->radioButton_solverMa57->isChecked())
+        app->Options()->SetStringValue("linear_solver","ma57");
+
 }

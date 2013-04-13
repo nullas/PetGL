@@ -225,7 +225,7 @@ bool OptimizeElastic::get_starting_point(Ipopt::Index n, bool init_x, Ipopt::Num
 bool OptimizeElastic::eval_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt::Number &obj_value)
 {
     UNUSED(n);
-    if (new_x && !updateCross(x) && !ComputeWritheNumber(x)) return false;
+    if (new_x && !updateCross(x)) return false;
     obj_value = 0;
     PointArray px = PointArray(x);
     Ipopt::Number t[3];
@@ -277,7 +277,8 @@ bool OptimizeElastic::eval_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x,
 bool OptimizeElastic::eval_grad_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt::Number *grad_f)
 {
     assert(n == n_variables);
-    if (new_x && !updateCross(x) && !ComputeWritheNumber(x)) return false;
+    if (new_x && !updateCross(x)) return false;
+    ComputeWritheNumber(x);
     Ipopt::Number t1[3], t2[3], t[3], e[3], f[3], tmp;
     Ipopt::Number* pV;
     PointArrayEdit pf = grad_f;
@@ -307,7 +308,7 @@ bool OptimizeElastic::eval_grad_f(Ipopt::Index n, const Ipopt::Number *x, bool n
         }
     }
 
-    PetCurve::HalfedgeHandle h_hnd_e = curve->next_halfedge_handle(halfedge_at_end_);
+    PetCurve::HalfedgeHandle h_hnd_e = halfedge_at_end_;
     PetCurve::HalfedgeHandle h_hnd_f = curve->next_halfedge_handle(h_hnd_e);
     Point E, F, G;
     do
@@ -318,19 +319,19 @@ bool OptimizeElastic::eval_grad_f(Ipopt::Index n, const Ipopt::Number *x, bool n
         if (idx >= 0)
         {
             G = ComputeTwistGradient(E, F, 0);
-            multiplyByScaleTo(G.data(), -2 * writhe_number_ / total_length_, pf(idx));
+            multiplyByScaleTo(G.data(), -2 * pOp->TwistingEnergyCoef * writhe_number_ / total_length_, pf(idx));
         }
         idx = InsertAdditionalPoint(curve->to_vertex_handle(h_hnd_e));
         if (idx >= 0)
         {
             G = ComputeTwistGradient(E, F, 1);
-            multiplyByScaleTo(G.data(), -2 * writhe_number_ / total_length_, pf(idx));
+            multiplyByScaleTo(G.data(), -2 * pOp->TwistingEnergyCoef * writhe_number_ / total_length_, pf(idx));
         }
         idx = InsertAdditionalPoint(curve->to_vertex_handle(h_hnd_f));
         if (idx >= 0)
         {
             G = ComputeTwistGradient(E, F, 2);
-            multiplyByScaleTo(G.data(), -2 * writhe_number_ / total_length_, pf(idx));
+            multiplyByScaleTo(G.data(), -2 * pOp->TwistingEnergyCoef * writhe_number_ / total_length_, pf(idx));
         }
         h_hnd_e = h_hnd_f;
         h_hnd_f = curve->next_halfedge_handle(h_hnd_e);
@@ -484,7 +485,7 @@ bool OptimizeElastic::eval_h(Ipopt::Index n, const Ipopt::Number *x,
     UNUSED(n);
     UNUSED(m);
     UNUSED(new_lambda);
-    if (new_x && !updateCross(x) && !ComputeWritheNumber(x)) return false;
+    if (new_x && !updateCross(x)) return false;
     int idx_pv, idx_nv, idx_cv;
     Ipopt::Number e[3];
     int i = 0;
@@ -506,6 +507,7 @@ bool OptimizeElastic::eval_h(Ipopt::Index n, const Ipopt::Number *x,
     }
     else
     {
+        ComputeWritheNumber(x);
         double tmp = 0;
         setZeros(values, nele_hess);
         i = 0, size = edges.size();
@@ -651,7 +653,7 @@ bool OptimizeElastic::eval_h(Ipopt::Index n, const Ipopt::Number *x,
             }
         }
         // twisting energy
-        AddHessianTwistingStep1(values, x, 2 * pOp->TwistingEnergyCoef * obj_factor / total_length_);
+        AddHessianTwistingStep1(values, x, -2 * pOp->TwistingEnergyCoef * obj_factor / total_length_);
         AddHessianTwistingStep2(values, x, -2 * pOp->TwistingEnergyCoef * writhe_number_* obj_factor / total_length_);
     }
     return true;
@@ -1679,7 +1681,7 @@ OptimizeElastic::Point OptimizeElastic::ComputeTwistGradient(const Point &E, con
 
 OptimizeElastic::Point OptimizeElastic::ComputeKb(const Point &E, const Point &F)
 {
-    return (E % F * 2) / (E.norm() * F.norm() + (E | F));
+    return ((E % F) * 2) / (E.norm() * F.norm() + (E | F));
 }
 
 
@@ -1817,7 +1819,7 @@ void OptimizeElastic::AddHessianBending(const int i, const int row, const int co
         }
         else if (col == n)//H_(i+1)(i-1)
         {
-            m += Matrix3::Identity() * (2 * P * deno * tmp);
+            m += Matrix3::Identity() * (2 * P * deno);
             m += ComputePQT(-4 * P * f, e);
         }
         else if (col == p)//H_(i-1)(i-1)
@@ -1880,11 +1882,11 @@ void OptimizeElastic::AddHessianCrossing(const int row, const int col, const Poi
 
 void OptimizeElastic::AddHessianTwistingStep1(double *values, const double *x, const double coef)
 {
-    PetCurve::HalfedgeHandle he_hnd = curve->next_halfedge_handle(halfedge_at_end_);
+    PetCurve::HalfedgeHandle he_hnd = halfedge_at_end_;
     PetCurve::VertexHandle pv, pc, pn;
     Point e, f;
     int idx_pv, idx_pc, idx_pn;
-    std::vector<Eigen::Vector3d> gradients(vertices.size(), Eigen::Vector3d(0,0,0));
+    std::vector<Vector3> gradients(vertices.size(), Vector3(0,0,0));
     do
     {
         pv = curve->from_vertex_handle(he_hnd);
@@ -1899,15 +1901,15 @@ void OptimizeElastic::AddHessianTwistingStep1(double *values, const double *x, c
         Eigen::Vector3d Kb = Eigen::Vector3d((ComputeKb(e,f)).data());
         if (idx_pv >= 0)
         {
-            gradients[idx_pv] += Kb / (2 * e.norm());
+            gradients[idx_pv] += Kb / 2 / e.norm();
         }
         if (idx_pn >= 0)
         {
-            gradients[idx_pn] += Kb / (-2 * f.norm());
+            gradients[idx_pn] += Kb / -2 / f.norm();
         }
         if (idx_pc >= 0)
         {
-            gradients[idx_pc] += Kb * (-1 / (2 * e.norm()) + 1 / (2 * f.norm()));
+            gradients[idx_pc] += Kb * (-1 / 2 / e.norm() + 1 / 2 / f.norm());
         }
     }
     while (he_hnd != halfedge_at_end_);
@@ -1923,7 +1925,7 @@ void OptimizeElastic::AddHessianTwistingStep1(double *values, const double *x, c
 
 void OptimizeElastic::AddHessianTwistingStep2(double *values, const double *x, const double coef)
 {
-    PetCurve::HalfedgeHandle he_hnd = curve->next_halfedge_handle(halfedge_at_end_);
+    PetCurve::HalfedgeHandle he_hnd = halfedge_at_end_;
     PetCurve::VertexHandle pv, pc, pn;
     Point e, f;
     int idx_pv, idx_pc, idx_pn;
@@ -1946,11 +1948,11 @@ void OptimizeElastic::AddHessianTwistingStep2(double *values, const double *x, c
         {
             m = ComputeGradientKb(e, f, -1);
             AddHessianAtEntries(idx_pv, idx_pv, values,
-                                m * (coef / (2 * e.norm())) + g * coef * ve.transpose() / 2 / pow(e.norm(),3)); // H_(i-1)(i-1)
+                                (m / (2 * e.norm()) + g * ve.transpose() / 2 / pow(e.norm(),3)) * coef); // H_(i-1)(i-1)
             if (idx_pc > idx_pv) // H_(i-1)(i)
                 AddHessianAtEntries(idx_pc, idx_pv, values,
-                                    m * (coef * (-1 / (2 * e.norm()) + 1 / (2 * f.norm())))
-                                    - g * coef * ve.transpose() / 2 / pow(e.norm(),3));
+                                    coef * (m * (-1 / (2 * e.norm()) + 1 / (2 * f.norm()))
+                                    - g * ve.transpose() / 2 / pow(e.norm(),3)));
             if (idx_pn > idx_pv) // H_(i-1)(i+1)
                 AddHessianAtEntries(idx_pn, idx_pv, values, m * (coef / (-2 * f.norm())));
         }
@@ -1958,29 +1960,29 @@ void OptimizeElastic::AddHessianTwistingStep2(double *values, const double *x, c
         {
             m = ComputeGradientKb(e, f, 1);
             AddHessianAtEntries(idx_pn, idx_pn, values,
-                                m * (coef / (-2 * f.norm())) + g * coef * vf.transpose() / 2 / pow(f.norm(),3));  // H_(i+1)(i+1)
+                                coef * (m / -2 / f.norm() + g * vf.transpose() / 2 / pow(f.norm(),3)));  // H_(i+1)(i+1)
             if (idx_pv > idx_pn) // H_(i+1)(i-1)
-                AddHessianAtEntries(idx_pv, idx_pn, values, m * (coef / (2 * e.norm())));
+                AddHessianAtEntries(idx_pv, idx_pn, values, m * (coef / 2 / e.norm()));
             if (idx_pc > idx_pn) // H_(i+1)(i)
                 AddHessianAtEntries(idx_pc, idx_pn, values,
-                                    m * (coef * (-1 / (2 * e.norm()) + 1 / (2 * f.norm())))
-                                    - g * coef * vf.transpose() / 2 / pow(f.norm(), 3));
+                                    coef * (m * (-1 / 2 / e.norm() + 1 / 2 / f.norm())
+                                    - g * vf.transpose() / 2 / pow(f.norm(), 3)));
         }
         if (idx_pc >= 0)
         {
             m = ComputeGradientKb(e, f, 0);
             AddHessianAtEntries(idx_pc, idx_pc, values,
-                                m * (coef * (-1 / (2 * e.norm()) + 1 / (2 * f.norm())))
-                                + g * coef * (ve.transpose() / 2 / pow(e.norm(),3)
-                                              + vf.transpose() / 2 / pow(f.norm(),3))); // H_(i)(i)
+                                coef * (m * (-1 / 2 / e.norm() + 1 / 2 / f.norm())
+                                + g * (ve.transpose() / 2 / pow(e.norm(),3)
+                                + vf.transpose() / 2 / pow(f.norm(),3)))); // H_(i)(i)
             if (idx_pn > idx_pc) // H_(i)(i+1)
                 AddHessianAtEntries(idx_pn, idx_pc, values,
-                                    m * (coef / (-2 * f.norm()))
-                                    - g * coef * vf.transpose() / 2 / pow(f.norm(),3));
+                                    coef * (m / -2 / f.norm()
+                                    - g * vf.transpose() / 2 / pow(f.norm(),3)));
             if (idx_pv > idx_pc) // H_(i)(i-1)
                 AddHessianAtEntries(idx_pv, idx_pc, values,
-                                    m * (coef / (2 * e.norm()))
-                                    - g * coef * ve.transpose() / 2 / pow(e.norm(),3));
+                                    coef * (m / 2 / e.norm()
+                                    - g * ve.transpose() / 2 / pow(e.norm(),3)));
         }
     }
     while (he_hnd != halfedge_at_end_);
@@ -1992,11 +1994,11 @@ OptimizeElastic::Matrix3 OptimizeElastic::ComputeGradientKb(const Point &e, cons
     Point Kb = ComputeKb(e, f);
     Matrix3 m = Matrix3::Zero();
     if (i == -1)
-        m += 2 * ComputeCrossMatrix(f) + ComputePQT(Kb, f);
+        m += ComputeCrossMatrix(f * 2) + ComputePQT(Kb, f + e / e.norm() * f.norm());
     else if (i == 0)
-        m += -2 * ComputeCrossMatrix(e + f) + ComputePQT(Kb, e -f);
+        m += ComputeCrossMatrix((e + f) * -2) + ComputePQT(Kb, e - f - e / e.norm() * f.norm() + f / f.norm() * e.norm());
     else if (i == 1)
-        m += 2 * ComputeCrossMatrix(e) - ComputePQT(Kb, e);
+        m += ComputeCrossMatrix(e * 2) - ComputePQT(Kb, e + f / f.norm() * e.norm());
     m /= e.norm()*f.norm() + (e|f);
     return m;
 }
@@ -2037,6 +2039,7 @@ double OptimizeElastic::ComputeTotalLength()
 bool OptimizeElastic::ComputeWritheNumber(const double *x)
 {
     double writhe_fraction = ComputeWritheFraction(x);
+    double another_writhe_fraction =
     double diff = numeric_limits<double>::max();
     int offset, temp_writhe;
     for (offset = -1; offset <= 1; ++offset)
@@ -2050,4 +2053,32 @@ bool OptimizeElastic::ComputeWritheNumber(const double *x)
     twist_times_ = temp_writhe;
     writhe_number_ = writhe_fraction + twist_times_ * 2 * M_PI;
     return true;
+}
+
+
+double OptimizeElastic::ComputeWritheFractionByArea(const double *x)
+{
+    Point t_N = ComputeEdge(halfedge_at_end_, x);
+    t_N /= t_N.norm();
+    PetCurve::HalfedgeHandle h_1 = curve->next_halfedge_handle(halfedge_at_end_);
+    PetCurve::HalfedgeHandle h_2 = curve->next_halfedge_handle(h_1);
+    double Area = 0;
+    Point t_1, t_2;
+    while (h_2 != halfedge_at_end_)
+    {
+        t_1 = ComputeEdge(h_1, x);
+        t_2 = ComputeEdge(h_2, x);
+        t_1 /= t_1.norm();
+        t_2 /= t_2.norm();
+        Area += SphericalArea(t_N, t_1, t_2);
+        h_1 = h_2;
+        h_2 = curve->next_halfedge_handle(h_1);
+    }
+    return Area;
+}
+
+
+double OptimizeElastic::SphericalArea(Point t_N, Point t_1, Point t_2)
+{
+
 }

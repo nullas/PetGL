@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>321</width>
-    <height>647</height>
+    <height>699</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -284,10 +284,44 @@
       <string>GroupBox</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_3">
-      <item row="0" column="0">
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="checkBox_derivativesCheck">
+        <property name="text">
+         <string>derivatives</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="checkBox_hessianApprox">
+        <property name="text">
+         <string>Hess. Approx.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0" colspan="2">
        <widget class="QPushButton" name="pushButton_computeRotation">
         <property name="text">
          <string>compute rotation</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QRadioButton" name="radioButton_solverMumps">
+        <property name="text">
+         <string>mumps</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QRadioButton" name="radioButton_solverMa57">
+        <property name="text">
+         <string>ma57</string>
         </property>
        </widget>
       </item>

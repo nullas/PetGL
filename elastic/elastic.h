@@ -14,6 +14,8 @@
 #include "PluginInterface.h"
 #include "PetGL.h"
 
+#include "coin/IpIpoptApplication.hpp"
+
 
 
 namespace Ui {
@@ -185,6 +187,7 @@ public:
 
 
 
+    void SetupIpoptOptions(Ipopt::SmartPtr<Ipopt::IpoptApplication> &);
 };
 
 #endif // ELASTIC_H
