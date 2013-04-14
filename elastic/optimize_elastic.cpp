@@ -9,7 +9,7 @@
 #endif
 
 #ifndef M_EP
-#define M_EP 1e-8
+#define M_EP 1e-13
 #endif
 
 
@@ -2039,7 +2039,8 @@ double OptimizeElastic::ComputeTotalLength()
 bool OptimizeElastic::ComputeWritheNumber(const double *x)
 {
     double writhe_fraction = ComputeWritheFraction(x);
-    double another_writhe_fraction =
+    double another_writhe_fraction = ComputeWritheFractionByArea(x);
+    double diff_two_way = writhe_fraction - another_writhe_fraction;
     double diff = numeric_limits<double>::max();
     int offset, temp_writhe;
     for (offset = -1; offset <= 1; ++offset)
@@ -2078,7 +2079,12 @@ double OptimizeElastic::ComputeWritheFractionByArea(const double *x)
 }
 
 
-double OptimizeElastic::SphericalArea(Point t_N, Point t_1, Point t_2)
+double OptimizeElastic::SphericalArea(const Point &t_N, const Point &t_1, Point t_2) const
 {
-
+    double sign = Sign(t_N % t_1 | t_2);
+    double res = -M_PI;
+    res += SphericalAreaHelper(t_N, t_1, t_2);
+    res += SphericalAreaHelper(t_1, t_2, t_N);
+    res += SphericalAreaHelper(t_2, t_N, t_1);
+    return sign * res;
 }

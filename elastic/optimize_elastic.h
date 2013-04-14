@@ -231,6 +231,19 @@ public:
     Point FindPerpendicularVec(const PetCurve::HalfedgeHandle &h_hnd, const double *x, Point p=Point(0,0,1));
     bool ComputeWritheNumber(const double *x);
     double ComputeWritheFractionByArea(const double *x);
+    double SphericalArea(const Point &t_N, const Point &t_1, Point t_2) const;
+    inline double Sign(const double p) const
+    {
+        if (p > 0) return 1;
+        if (p < 0) return -1;
+        return 0;
+    }
+
+    inline double SphericalAreaHelper(const Point &t_k, const Point &t_l, const Point &t_m) const
+    {
+        return acos(((t_k|t_m) - (t_k | t_l)*(t_l | t_m)) / ((t_k % t_l).norm() * (t_l % t_m).norm()));
+    }
+
 private:
     Elastic* pElastic;
     PetCurve* curve;
