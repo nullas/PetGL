@@ -63,7 +63,8 @@ public:
         int twisting_times;
         double twisting_fraction;
         double dt;
-        int ProjectionIter;
+        int itertations;
+        int max_steps;
     }pOptimize;
 
     pOptimize pO;
@@ -129,6 +130,8 @@ private slots:
     void on_doubleSpinBox_twist_fraction_editingFinished();
 
     void on_spinBox_ProjectionIter_editingFinished();
+
+    void on_spinBox_max_step_editingFinished();
 
 public:
     PetGL* pgl;

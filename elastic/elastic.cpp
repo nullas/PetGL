@@ -133,7 +133,8 @@ void Elastic::setupTabWidget()
             this, SLOT(on_doubleSpinBox_twist_fraction_editingFinished()));
     connect(ui->spinBox_ProjectionIter, SIGNAL(editingFinished()),
             this, SLOT(on_spinBox_ProjectionIter_editingFinished()));
-
+    connect(ui->spinBox_max_step, SIGNAL(editingFinished()),
+            this, SLOT(on_spinBox_max_step_editingFinished()));
 
     r = ui->doubleSpinBox_collisionradius->value();
     pO.r = r;
@@ -146,7 +147,8 @@ void Elastic::setupTabWidget()
     pO.PlaneConstraintsCoef = ui->doubleSpinBox_PlaneConstraintsCoef->value();
     pO.dt = ui->doubleSpinBox_dt->value();
     pO.twisting_fraction = ui->doubleSpinBox_twist_fraction->value();
-    pO.ProjectionIter = ui->spinBox_ProjectionIter->value();
+    pO.itertations = ui->spinBox_ProjectionIter->value();
+    pO.max_steps = ui->spinBox_max_step->value();
 }
 
 

@@ -269,7 +269,7 @@ int HamiltonProjection::Next()
     {
         if (check_derivative_)
             rlt = CheckDerivative();
-        if (rlt != 0)
+        if (rlt < 0)
             return rlt;
         dt_ = 0;
         OutputStatus();
@@ -303,7 +303,7 @@ int HamiltonProjection::SymplecticEuler()
     gradients_ -= lhs_;
 //    double d = gradients_.dot(lhs_);
 //    d *= d;
-    if (std::abs(gradients_.minCoeff()) < 1e-8 && std::abs(gradients_.maxCoeff()) < 1e-8)
+    if (MaxNorm(gradients_) < 1e-8)
         return 1;
     dt_ = dt(x_, gradients_);
     if (dt_ == 0)
@@ -328,8 +328,8 @@ double HamiltonProjection::dt(const Eigen::VectorXd& x, const Eigen::VectorXd& g
         lhs_ = x - grads * temp_dt;
         if (ComputeEnergy(lhs_, temp_energy) == 0 && ComputeG(lhs_, g) == 0)
         {
-            temp_g = std::abs(g.maxCoeff()) + std::abs(g.minCoeff());
-            if (temp_energy < min_energy - 1e-8 && temp_g < 1e-4)
+            temp_g = MaxNorm(g);
+            if (temp_energy < min_energy - min_energy * M_EP && std::abs(temp_energy - min_energy) < std::abs(min_energy) / 100 && temp_g < 1e-4)
             {
                 dt = temp_dt;
                 min_energy = temp_energy;
@@ -937,9 +937,10 @@ double HamiltonProjection::Rand()
 
 int HamiltonProjection::OutputStatus()
 {
+    static time_t rawtime;
+    static struct tm *timeinfo;
+    static char timestring[100];
     ++run_.step;
-    if (run_.step >= parameter_->max_steps)
-        return 1;
     double energy;
     int rlt = ComputeEnergy(x_, energy);
     if (rlt != 0)
@@ -948,8 +949,15 @@ int HamiltonProjection::OutputStatus()
     if (rlt != 0)
         return rlt;
     if (run_.step % 5 == 0)
-        fout << "step\tdt\t\tenergy\t\tviolation" << std::endl;
+    {
+        time(&rawtime);
+        timeinfo = localtime(&rawtime);
+        strftime(timestring, 100, "%T", timeinfo);
+        fout << "step\tdt\t\tenergy\t\tviolation\t" << timestring << std::endl;
+    }
     fout << run_.step << "\t" << dt_ << "\t";
     fout << energy << "\t" << MaxNorm(g_) << std::endl;
+    if (run_.step >= parameter_->max_steps)
+        return 1;
     return 0;
 }
