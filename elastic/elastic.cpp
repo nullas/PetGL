@@ -10,7 +10,9 @@
 
 #include "optimize.h"
 #include "optimize_elastic.h"
+#include "eigen_hamilton.h"
 #include "ui_elasticpanel.h"
+
 
 
 Q_EXPORT_PLUGIN2(PLUGIN_NAME, Elastic)
@@ -123,6 +125,14 @@ void Elastic::setupTabWidget()
             this, SLOT(on_pushButton_computeRotation_clicked()));
     connect(ui->pushButton_twist, SIGNAL(clicked()),
             this, SLOT(on_pushButton_twist_clicked()));
+    connect(ui->pushButton_hamiltonProj, SIGNAL(clicked()),
+            this, SLOT(on_pushButton_hamiltonProj_clicked()));
+    connect(ui->doubleSpinBox_dt, SIGNAL(editingFinished()),
+            this, SLOT(on_doubleSpinBox_dt_editingFinished()));
+    connect(ui->doubleSpinBox_twist_fraction, SIGNAL(editingFinished()),
+            this, SLOT(on_doubleSpinBox_twist_fraction_editingFinished()));
+    connect(ui->spinBox_ProjectionIter, SIGNAL(editingFinished()),
+            this, SLOT(on_spinBox_ProjectionIter_editingFinished()));
 
 
     r = ui->doubleSpinBox_collisionradius->value();
@@ -134,6 +144,9 @@ void Elastic::setupTabWidget()
     pO.TangentConstraintsCoef = ui->doubleSpinBox_TangentConstraintsCoef->value();
     pO.extension = ui->spinBox_extension->value();
     pO.PlaneConstraintsCoef = ui->doubleSpinBox_PlaneConstraintsCoef->value();
+    pO.dt = ui->doubleSpinBox_dt->value();
+    pO.twisting_fraction = ui->doubleSpinBox_twist_fraction->value();
+    pO.ProjectionIter = ui->spinBox_ProjectionIter->value();
 }
 
 
@@ -585,12 +598,7 @@ void Elastic::on_pushButton_doitright_clicked()
     Ipopt::SmartPtr<Ipopt::TNLP> mynlp = new Optimize(this);
     Ipopt::SmartPtr<Ipopt::IpoptApplication> app = IpoptApplicationFactory();
 
-    app->Options()->SetNumericValue("tol", 1e-7);
-    app->Options()->SetStringValue("mu_strategy", "adaptive");
-    app->Options()->SetStringValue("output_file", "ipopt.out");
-    app->Options()->SetNumericValue("point_perturbation_radius", 10);
-    app->Options()->SetStringValue("derivative_test","second-order");
-//    app->Options()->SetStringValue("linear_solver","ma57");
+    SetupIpoptOptions(app);
 
     Ipopt::ApplicationReturnStatus status;
     status = app->Initialize();
@@ -933,13 +941,7 @@ void Elastic::on_pushButton_doItRightIter_clicked()
         Ipopt::SmartPtr<Ipopt::TNLP> mynlp = new Optimize(this);
         Ipopt::SmartPtr<Ipopt::IpoptApplication> app = IpoptApplicationFactory();
 
-        app->Options()->SetNumericValue("tol", 1e-7);
-        app->Options()->SetStringValue("mu_strategy", "adaptive");
-        app->Options()->SetStringValue("output_file", "ipopt.out");
-        app->Options()->SetNumericValue("point_perturbation_radius", 0.);
-//        app->Options()->SetStringVaue("derivative_test","second-order");
-//        app->Options()->SetStringValue("hessian_approximation", "limited-memory");
-        app->Options()->SetStringValue("linear_solver","mumps");
+        SetupIpoptOptions(app);
 
         Ipopt::ApplicationReturnStatus status;
         status = app->Initialize();
@@ -1215,4 +1217,152 @@ void Elastic::SetupIpoptOptions(Ipopt::SmartPtr<Ipopt::IpoptApplication> &app)
     if (this->ui->radioButton_solverMa57->isChecked())
         app->Options()->SetStringValue("linear_solver","ma57");
 
+}
+
+void Elastic::on_pushButton_hamiltonProj_clicked()
+{
+    QString filename = \
+            QFileDialog::getOpenFileName(tabPlugin, \
+                                         tr("Optimize"), \
+                                         "/home/nullas/workspace/PetGL/meshes", \
+                                         tr("Optimization (*.toit)"));
+    if (filename.isEmpty()) return;
+    QFileInfo finfo = QFileInfo(filename);
+    QDir dir = finfo.absoluteDir();
+    ifstream fin;
+    fin.open(filename.toAscii(), ios::in);
+    if (!fin.is_open())
+    {
+        cout<< "Read file error" << filename.toStdString() <<endl;
+        return;
+    }
+
+    std::string fname;
+    fin >> fname;
+    if (fin.eof()) return;
+    fname = dir.filePath(QString(fname.c_str())).toStdString();
+    PetCurve *mesh = new PetCurve();
+    if(!mesh->read_curve(QString(fname.c_str()))) return;
+
+    pgl->AddPetMesh(mesh);
+
+    PetMesh* pmesh = mesh;
+    if (!pmesh) return;
+    if (!pmesh->iscurve()) return;
+    curveToOptimize = dynamic_cast<PetCurve*>(pmesh);
+
+    int iteration = 1;
+
+
+    int idx;
+    char cType;
+    int n;
+    std::vector<pair<char, int> > filestruct;
+    fin >> cType;
+    if (cType == 'I')
+    {
+        fin >> iteration;
+        fin >> cType;
+    }
+
+    for (int i = 0; i < iteration; ++i)
+    {
+        filestruct.clear();
+        while (cType != 'E' && !fin.eof())
+        {
+            if (cType == 'S')
+            {
+                fin >> cType;
+                continue;
+            }
+            fin >> n;
+            filestruct.push_back(pair<char, int>(cType, n));
+            fin >> cType;
+        }
+
+        clearAllConstraints();
+        Point::value_type x, y, z, w;
+        Point P;
+        std::vector<pair<char, int> >::const_iterator it = filestruct.begin(),
+                it_end = filestruct.end();
+        for (; it != it_end; ++it)
+        {
+            switch ((*it).first)
+            {
+            case 'P':
+                for (int i = 0; i < (*it).second; ++i)
+                {
+                    fin >> idx >> x >> y >> z;
+                    PositionConstraints.push_back(pair<PetCurve::VertexHandle, Point>
+                                                  (curveToOptimize->vertex_handle(idx),
+                                                   Point(x,y,z)));
+                }
+                break;
+            case 'T':
+                for (int i = 0; i < (*it).second; ++i)
+                {
+                    fin >> idx >> x >> y >> z;
+                    TangentConstraints.push_back(pair<PetCurve::EdgeHandle, Point>
+                                                 (curveToOptimize->edge_handle(idx),
+                                                  Point(x,y,z)));
+                }
+                break;
+            case 'A':
+                for (int i = 0; i < (*it).second; ++i)
+                {
+                    fin >> idx >> x >> y >> z >> w;
+                    P = Point(x, y, z);
+                    PlaneConstraintsInfo.push_back(pair<PetCurve::Point, double>(P, w));
+                    PlaneConstraints.push_back(curveToOptimize->vertex_handle(idx));
+                }
+                break;
+            case 'V':
+                for (int i =0; i < (*it).second; ++i)
+                {
+                    fin >> idx;
+                    verticesToOptimize.push_back(curveToOptimize->vertex_handle(idx));
+                }
+                break;
+            case 'M':
+                for (int i = 0; i < (*it).second; ++i)
+                {
+                    fin >> x >> y >> z;
+                    P = Point(x,y,z);
+                    MaterialFrameConstraints.push_back(P);
+                }
+                break;
+
+            default:
+                return;
+            }
+        }
+
+        HamiltonProjection hp(this);
+        hp.check_derivative(ui->checkBox_derivativesCheck->isChecked());
+        while (hp.Next() == 0)
+            pgl->updateView(1);
+        fin >> cType;
+        while (!fin.eof() && cType != 'S') fin >> cType;
+        if (fin.eof()) break;
+    }
+}
+
+void Elastic::on_doubleSpinBox_dt_editingFinished()
+{
+    pO.dt = ui->doubleSpinBox_dt->value();
+}
+
+void Elastic::on_doubleSpinBox_twist_fraction_editingFinished()
+{
+    pO.twisting_fraction = ui->doubleSpinBox_twist_fraction->value();
+}
+
+void Elastic::on_spinBox_ProjectionIter_editingFinished()
+{
+    pO.itertations = ui->spinBox_ProjectionIter->value();
+}
+
+void Elastic::on_spinBox_max_step_editingFinished()
+{
+    pO.max_steps = ui->spinBox_max_step->value();
 }

@@ -61,6 +61,9 @@ public:
         double r;
         int extension;
         int twisting_times;
+        double twisting_fraction;
+        double dt;
+        int ProjectionIter;
     }pOptimize;
 
     pOptimize pO;
@@ -118,6 +121,14 @@ private slots:
     void on_doubleSpinBox_TwistingEnergyCoef_editingFinished();
 
     void on_spinBox_twist_times_editingFinished();
+
+    void on_pushButton_hamiltonProj_clicked();
+
+    void on_doubleSpinBox_dt_editingFinished();
+
+    void on_doubleSpinBox_twist_fraction_editingFinished();
+
+    void on_spinBox_ProjectionIter_editingFinished();
 
 public:
     PetGL* pgl;

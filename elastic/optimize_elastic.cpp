@@ -1948,13 +1948,13 @@ void OptimizeElastic::AddHessianTwistingStep2(double *values, const double *x, c
         {
             m = ComputeGradientKb(e, f, -1);
             AddHessianAtEntries(idx_pv, idx_pv, values,
-                                (m / (2 * e.norm()) + g * ve.transpose() / 2 / pow(e.norm(),3)) * coef); // H_(i-1)(i-1)
+                                (m / 2 / e.norm() + g * ve.transpose() / 2 / pow(e.norm(),3)) * coef); // H_(i-1)(i-1)
             if (idx_pc > idx_pv) // H_(i-1)(i)
                 AddHessianAtEntries(idx_pc, idx_pv, values,
-                                    coef * (m * (-1 / (2 * e.norm()) + 1 / (2 * f.norm()))
+                                    coef * (m * (-1 / 2 / e.norm() + 1 / 2 / f.norm())
                                     - g * ve.transpose() / 2 / pow(e.norm(),3)));
             if (idx_pn > idx_pv) // H_(i-1)(i+1)
-                AddHessianAtEntries(idx_pn, idx_pv, values, m * (coef / (-2 * f.norm())));
+                AddHessianAtEntries(idx_pn, idx_pv, values, m * (coef / -2 / f.norm()));
         }
         if (idx_pn >= 0)
         {
@@ -1994,11 +1994,11 @@ OptimizeElastic::Matrix3 OptimizeElastic::ComputeGradientKb(const Point &e, cons
     Point Kb = ComputeKb(e, f);
     Matrix3 m = Matrix3::Zero();
     if (i == -1)
-        m += ComputeCrossMatrix(f * 2) + ComputePQT(Kb, f + e / e.norm() * f.norm());
+        m += ComputeCrossMatrix(f * 2) + ComputePQT(Kb, f + e/e.norm()*f.norm());
     else if (i == 0)
-        m += ComputeCrossMatrix((e + f) * -2) + ComputePQT(Kb, e - f - e / e.norm() * f.norm() + f / f.norm() * e.norm());
+        m += ComputeCrossMatrix((e + f) * -2) + ComputePQT(Kb, e + f/f.norm()*e.norm() - f - e/e.norm()*f.norm());
     else if (i == 1)
-        m += ComputeCrossMatrix(e * 2) - ComputePQT(Kb, e + f / f.norm() * e.norm());
+        m += ComputeCrossMatrix(e * 2) - ComputePQT(Kb, e + f/f.norm()*e.norm());
     m /= e.norm()*f.norm() + (e|f);
     return m;
 }

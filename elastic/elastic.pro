@@ -20,11 +20,13 @@ unix {
 include (../common.pri)
 SOURCES += elastic.cpp \
     optimize.cpp \
-    optimize_elastic.cpp
+    optimize_elastic.cpp \
+    eigen_hamilton.cpp
 
 HEADERS += elastic.h \
     optimize.h \
-    optimize_elastic.h
+    optimize_elastic.h \
+    eigen_hamilton.h
 
 FORMS += \
     elasticpanel.ui
@@ -32,6 +34,7 @@ FORMS += \
 INCLUDEPATH += /usr/local/include/eigen3
 
 LIBS += -lPetMesh -lPGL
+LIBS += -lspqr -lcholmod -lsuitesparseconfig -lcamd -lbtf -lcolamd -lumfpack -lklu -lamd
 
 DESTDIR = ..
 

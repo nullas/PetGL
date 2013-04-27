@@ -212,7 +212,8 @@ bool Optimize::get_starting_point(Ipopt::Index n, bool init_x, Ipopt::Number *x,
 bool Optimize::eval_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt::Number &obj_value)
 {
     UNUSED(n);
-    if (new_x && !updateCross(x)) return false;
+    UNUSED(new_x);
+    if (updateCross(x) == false) return false;
     obj_value = 0;
     PointArray px = PointArray(x);
     Ipopt::Number t[3];
@@ -258,7 +259,8 @@ bool Optimize::eval_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt:
 bool Optimize::eval_grad_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt::Number *grad_f)
 {
     assert(n == n_variables);
-    if (new_x && !updateCross(x)) return false;
+    UNUSED(new_x);
+    if (updateCross(x) == false) return false;
     Ipopt::Number t1[3], t2[3], t[3], e[3], f[3], tmp;
     Ipopt::Number* pV;
     PointArrayEdit pf = grad_f;
@@ -326,7 +328,8 @@ bool Optimize::eval_g(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt:
 {
     UNUSED(n);
     UNUSED(m);
-    if (new_x && !updateCross(x)) return false;
+    UNUSED(new_x);
+    if (updateCross(x) == false) return false;
     int i = 0, size = edges.size();
     for (; i < size; i++)
         g[i] = computeEdgeLength(i, x);
@@ -345,7 +348,8 @@ bool Optimize::eval_jac_g(Ipopt::Index n, const Ipopt::Number *x, bool new_x,
 {
     UNUSED(n);
     UNUSED(m);
-    if (new_x && !updateCross(x)) return false;
+    UNUSED(new_x);
+
     Ipopt::Number e[3];
     int idx_nv, idx_pv;
     int idx = 0;
@@ -396,6 +400,7 @@ bool Optimize::eval_jac_g(Ipopt::Index n, const Ipopt::Number *x, bool new_x,
     }
     else
     {
+        if (updateCross(x) == false) return false;
         setZeros(values, nele_jac);
         int i = 0, size = edges.size();
         for (; i < size; i++)
@@ -438,7 +443,7 @@ bool Optimize::eval_h(Ipopt::Index n, const Ipopt::Number *x,
     UNUSED(n);
     UNUSED(m);
     UNUSED(new_lambda);
-    if (new_x && !updateCross(x)) return false;
+    UNUSED(new_x);
     int idx_pv, idx_nv, idx_cv;
     Ipopt::Number e[3];
     int idx = 0;
@@ -578,6 +583,7 @@ bool Optimize::eval_h(Ipopt::Index n, const Ipopt::Number *x,
     }
     else
     {
+        if (updateCross(x) == false) return false;
         double tmp = 0;
         setZeros(values, nele_hess);
         i = 0, size = edges.size();
@@ -1463,6 +1469,10 @@ double Optimize::LineSegmentsSqDistance(const int idx, const int ref_i, const in
 double Optimize::CrossLineSegmentsDistance(const Point &p0, const Point &p1, const Point &q0, const Point &q1)
 {
     Point w = (p0 - p1) % (q0 - q1);
+    if ( w.norm() / (p0 - p1).norm() / (q0 - q1).norm() < 5e-2)
+    {
+        std::cout << "really?" << std::endl;
+    }
     return ((p0 + p1) / 2 - (q0 + q1) / 2) | w;
 }
 
@@ -1622,7 +1632,6 @@ void Optimize::EdgesIntersections()
             F.push_front(from);
         }
         crossF.push_back(F);
-
         crossRef.push_back(pair<int, int>(pOp->extension + 1, pOp->extension + 1));
     }
     refSize = 2 * (2 + pOp->extension) - 1;
@@ -1637,6 +1646,7 @@ bool Optimize::updateCross(const double* x)
     int idx_end = crosses.size();
     double min_dist;
     double distance;
+    bool result = true;
     pair<int, int> update;
     for (idx_ref = 0; idx_ref < idx_end; ++idx_ref)
     {
@@ -1645,11 +1655,6 @@ bool Optimize::updateCross(const double* x)
         {
             for (second = crossRef[idx_ref].second - 1; second <= crossRef[idx_ref].second + 1; ++second)
             {
-                if(first < 0 || second < 0 || first >= refSize || second >= refSize)
-                {
-                    std::cout << "Increase extension\n" << std::endl;
-                    return false;
-                }
                 distance = LineSegmentsSqDistance(idx_ref, first, second, x);
                 if (distance < min_dist)
                 {
@@ -1658,7 +1663,13 @@ bool Optimize::updateCross(const double* x)
                 }
             }
         }
+        if(update.first == 0 || update.second == 0 || update.first == refSize-1 || update.second >= refSize-1)
+        {
+            std::cout << "Extension touched!\n" << std::endl;
+            result = false;
+            break;
+        }
         crossRef[idx_ref] = update;
     }
-    return true;
+    return result;
 }
