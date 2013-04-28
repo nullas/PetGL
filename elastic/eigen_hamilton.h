@@ -6,6 +6,7 @@
 #include <Eigen/Core>
 #include <Eigen/Sparse>
 #include <fstream>
+#include <ctime>
 
 #include "elastic.h"
 
@@ -28,7 +29,7 @@ public:
     std::vector<Eigen::Triplet<double> > triplet_;
     const Elastic::pOptimize* parameter_;
     ofstream fout;
-    bool check_derivative_, initialized_;
+    bool check_derivative_, tangent_gradient_, initialized_;
     void check_derivative(bool check);
     double dt_;
     int n_constraints_;
@@ -82,12 +83,17 @@ public:
     struct Run
     {
         int step;
+        double timing_tangent_optimal;
+        double timing_dt;
+        double timing_projection;
     }run_;
     HamiltonProjection::Vec3d ComputeGradientBending(const Vec3d &e, const Vec3d f, int i);
     double RelativeError(const double x, const double y);
     int CheckDerivative();
     double Rand();
     int OutputStatus();
+    double OneNorm(const VecXd &v);
+    double dt_full(const VecXd &x, const VecXd &grads);
 };
 
 #endif // EIGEN_HAMILTON_H

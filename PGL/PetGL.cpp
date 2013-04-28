@@ -84,6 +84,7 @@ void PetGL::loadPlugins()
          pplugin = qobject_cast<PetPluginInterface *>(plugin);
          pplugin->initial(this);
          PluginLists.push_back(pplugin);
+         connect(pplugin, SIGNAL(updateViewNeeded(int)), this, SLOT(updateView(int)));
      }
     }
 }

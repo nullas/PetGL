@@ -12,7 +12,7 @@ HamiltonProjection::HamiltonProjection(Elastic *p) : elastic_(p), vertices_(p->v
     n_variables_(3 * vertices_.size()),
     rhs_(3 * vertices_.size()), lhs_(3 * vertices_.size()), x_(3 * vertices_.size()), v_(3 * vertices_.size()),
     gradients_(3 * vertices_.size()), parameter_(&p->pO),
-    fout("Projection.out"), check_derivative_(false), initialized_(false)
+    fout("Projection.out"), check_derivative_(false), tangent_gradient_(true), initialized_(false)
 {
     rhs_.setZero(n_variables_);
     lhs_.setZero(n_variables_);
@@ -31,6 +31,9 @@ HamiltonProjection::HamiltonProjection(Elastic *p) : elastic_(p), vertices_(p->v
     g_ = Eigen::VectorXd(n_constraints_);
     grad_g_ = SpMat(n_variables_, n_constraints_);
     run_.step = -1;
+    run_.timing_dt = 0;
+    run_.timing_projection = 0;
+    run_.timing_tangent_optimal = 0;
     srand(time(NULL));
 }
 
@@ -275,17 +278,26 @@ int HamiltonProjection::Next()
         OutputStatus();
         initialized_ = true;
     }
+    time_t tic = clock(), toc;
     rlt = SymplecticEuler();
-    if (rlt != 0)
+    toc = clock();
+    run_.timing_tangent_optimal = (double)(toc - tic) / CLOCKS_PER_SEC;
+    if (rlt < 0)
         return rlt;
-    rlt = Projection();
-    if (rlt != 0)
+    tic = clock();
+    rlt += Projection();
+    toc = clock();
+    run_.timing_projection = (double)(toc - tic) / CLOCKS_PER_SEC;
+    if (rlt < 0)
         return rlt;
-    rlt = UpdateMesh();
-    if (rlt != 0)
-        return rlt;
-    rlt = OutputStatus();
-    if (rlt != 0)
+    if (run_.step % 10 == 0 || rlt == 1)
+    {
+        rlt += UpdateMesh();
+        if (rlt < 0)
+            return rlt;
+    }
+    rlt += OutputStatus();
+    if (rlt < 0)
         return rlt;
     return rlt;
 }
@@ -293,9 +305,10 @@ int HamiltonProjection::Next()
 int HamiltonProjection::SymplecticEuler()
 {
     static Eigen::VectorXd v(n_constraints_);
+    static Eigen::SPQR<SpMat> qr;
     ComputeGradients(x_, gradients_);
     ComputeGradientG(x_, grad_g_);
-    Eigen::SPQR<SpMat> qr(grad_g_);
+    qr.compute(grad_g_);
     if (qr.info() != 0)
         return -1;
     v = qr.solve(gradients_);
@@ -303,11 +316,20 @@ int HamiltonProjection::SymplecticEuler()
     gradients_ -= lhs_;
 //    double d = gradients_.dot(lhs_);
 //    d *= d;
-    if (MaxNorm(gradients_) < 1e-8)
+    double sd = 100;
+    sd = std::max(OneNorm(v) / v.rows(), sd) / sd;
+    if (MaxNorm(gradients_) < 1e-8 / sd)
         return 1;
+    time_t tic = clock();
     dt_ = dt(x_, gradients_);
     if (dt_ == 0)
-        return 1;
+    {
+        dt_ = dt_full(x_, gradients_);
+        if (dt_ == 0)
+            return 1;
+    }
+    time_t toc = clock();
+    run_.timing_dt = (double)(toc - tic) / CLOCKS_PER_SEC;
     x_ -= gradients_ * dt_;
     return 0;
 }
@@ -315,21 +337,54 @@ int HamiltonProjection::SymplecticEuler()
 double HamiltonProjection::dt(const Eigen::VectorXd& x, const Eigen::VectorXd& grads)
 {
     static const double gr = 0.618;
+    static int typical_start = 0;
     double dt = 0;
-    double temp_dt = parameter_->dt;
     double min_energy;
     int rlt = ComputeEnergy(x, min_energy);
     if (rlt != 0)
         return rlt;
     double temp_energy, temp_g;
     Eigen::VectorXd g(n_constraints_);
-    for (int i = 0; i < parameter_->itertations; ++i)
+    int start = std::max(0, typical_start - 1);
+    double temp_dt = std::pow(gr, start) * parameter_->dt;
+    int i;
+    for (i = start; i < parameter_->itertations; ++i)
     {
         lhs_ = x - grads * temp_dt;
         if (ComputeEnergy(lhs_, temp_energy) == 0 && ComputeG(lhs_, g) == 0)
         {
             temp_g = MaxNorm(g);
-            if (temp_energy < min_energy - min_energy * M_EP && std::abs(temp_energy - min_energy) < std::abs(min_energy) / 100 && temp_g < 1e-4)
+            if (temp_energy < min_energy && std::abs(temp_energy - min_energy) < std::abs(min_energy) / 20 && temp_g < 1e-6)
+            {
+                dt = temp_dt;
+                min_energy = temp_energy;
+                break;
+            }
+        }
+        temp_dt *= gr;
+    }
+    typical_start = i;
+    return dt;
+}
+
+double HamiltonProjection::dt_full(const VecXd& x, const VecXd& grads)
+{
+    static const double gr = 0.618;
+    double dt = 0;
+    double temp_dt = parameter_->dt * 1e-2;
+    double min_energy;
+    int rlt = ComputeEnergy(x, min_energy);
+    if (rlt != 0)
+        return rlt;
+    double temp_energy, temp_g;
+    Eigen::VectorXd g(n_constraints_);
+    for (int i = 0; i < 50; ++i)
+    {
+        lhs_ = x - grads * temp_dt;
+        if (ComputeEnergy(lhs_, temp_energy) == 0 && ComputeG(lhs_, g) == 0)
+        {
+            temp_g = MaxNorm(g);
+            if (temp_energy < min_energy && std::abs(temp_energy - min_energy) < std::abs(min_energy) / 20 && temp_g < 1e-6)
             {
                 dt = temp_dt;
                 min_energy = temp_energy;
@@ -818,6 +873,16 @@ double HamiltonProjection::MaxNorm(const Eigen::VectorXd& x)
     return low < up ? up : low;
 }
 
+double HamiltonProjection::OneNorm(const VecXd &v)
+{
+    double rlt = 0;
+    for (int i = 0; i < v.rows(); ++i)
+    {
+        rlt += std::abs(v(i));
+    }
+    return rlt;
+}
+
 int HamiltonProjection::UpdateMesh()
 {
     int i = 0, end = vertices_.size();
@@ -940,6 +1005,7 @@ int HamiltonProjection::OutputStatus()
     static time_t rawtime;
     static struct tm *timeinfo;
     static char timestring[100];
+    static clock_t tic = clock();
     ++run_.step;
     double energy;
     int rlt = ComputeEnergy(x_, energy);
@@ -953,10 +1019,14 @@ int HamiltonProjection::OutputStatus()
         time(&rawtime);
         timeinfo = localtime(&rawtime);
         strftime(timestring, 100, "%T", timeinfo);
-        fout << "step\tdt\t\tenergy\t\tviolation\t" << timestring << std::endl;
+        fout << "step\tdt\t\tenergy\t\tviolation\t" << "timing\t\ttangent optimal\tdt\t\tprojection\t";
+        fout << timestring << std::endl;
     }
+    clock_t toc = clock();
     fout << run_.step << "\t" << dt_ << "\t";
-    fout << energy << "\t" << MaxNorm(g_) << std::endl;
+    fout << energy << "\t" << MaxNorm(g_) << "\t" << (double)(toc - tic) / CLOCKS_PER_SEC << "\t";
+    fout << run_.timing_tangent_optimal << "\t" << run_.timing_dt << "\t" << run_.timing_projection << std::endl;
+    tic = toc;
     if (run_.step >= parameter_->max_steps)
         return 1;
     return 0;

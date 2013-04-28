@@ -10,12 +10,15 @@
 class PetPluginInterface : public QObject
 {
     Q_OBJECT
+
+signals:
+    void updateViewNeeded(int level=0);
+public slots:
+
 public:
     virtual ~PetPluginInterface() {}
     virtual void initial(QWidget* parent) = 0;
     virtual void drawExtra() = 0;
-signals:
-    void updateViewNeeded(int level=0);
 };
 
 Q_DECLARE_INTERFACE (PetPluginInterface, "plugins/1.0")

@@ -21,12 +21,14 @@ include (../common.pri)
 SOURCES += elastic.cpp \
     optimize.cpp \
     optimize_elastic.cpp \
-    eigen_hamilton.cpp
+    eigen_hamilton.cpp \
+    projection_thread.cpp
 
 HEADERS += elastic.h \
     optimize.h \
     optimize_elastic.h \
-    eigen_hamilton.h
+    eigen_hamilton.h \
+    projection_thread.h
 
 FORMS += \
     elasticpanel.ui

@@ -1,19 +1,12 @@
 #include "elastic.h"
-
 #include <cmath>
-
 #include <GL/gl.h>
-
 #include <QFileDialog>
-
 #include <QGLViewer/qglviewer.h>
-
 #include "optimize.h"
 #include "optimize_elastic.h"
 #include "eigen_hamilton.h"
 #include "ui_elasticpanel.h"
-
-
 
 Q_EXPORT_PLUGIN2(PLUGIN_NAME, Elastic)
 
@@ -637,37 +630,7 @@ void Elastic::on_doubleSpinBox_BendingEnergyCoef_editingFinished()
 
 void Elastic::on_pushButton_test_clicked()
 {
-    getCurrentCurve();
-    curveToOptimize = pcurve;
-    verticesToOptimize.clear();
-    verticesToOptimize.push_back(curveToOptimize->vertex_handle(2));
-    PositionConstraints.clear();
-//    PositionConstraints.push_back(pair<PetCurve::VertexHandle, PetCurve::Point>(pcurve->vertex_handle(0),
-//                                                                                pcurve->point(vertex_handle(1))));
-    Ipopt::SmartPtr<Ipopt::TNLP> mynlp = new Optimize(this);
-    Ipopt::SmartPtr<Ipopt::IpoptApplication> app = IpoptApplicationFactory();
-    app->Options()->SetNumericValue("tol", 1e-4);
-    app->Options()->SetStringValue("mu_strategy", "adaptive");
-    app->Options()->SetStringValue("output_file", "ipopt.out");
-//    app->Options()->SetStringValue("derivative_test","second-order");
-    app->Options()->SetStringValue("linear_solver","ma57");
-    Ipopt::ApplicationReturnStatus status;
-    status = app->Initialize();
-    if (status != Ipopt::Solve_Succeeded) {
-    std::cout << "\n\n*** Error during initialization!\n" << std::endl;
-    }
-
-    // Ask Ipopt to solve the problem
-    status = app->OptimizeTNLP(mynlp);
-
-    if (status == Ipopt::Solve_Succeeded) {
-    std::cout << "\n\n*** The problem solved!\n" << std::endl;
-    }
-    else {
-    std::cout << "\n\n*** The problem FAILED!\n" << std::endl;
-    }
-
-    pgl->updateView(1);
+    emit updateViewNeeded(0);
 }
 
 void Elastic::on_pushButton_wholeCurvesInteriorVertices_clicked()
