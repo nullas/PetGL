@@ -411,7 +411,7 @@ double TangentProjection::dt_full(const VecXd& x, const VecXd& grads)
     return dt;
 }
 
-Eigen::Vector3d TangentProjection::ComputeEdg(const PetCurve::HalfedgeHandle &h_hnd, const Eigen::VectorXd x)
+Eigen::Vector3d TangentProjection::ComputeEdge(const PetCurve::HalfedgeHandle &h_hnd, const Eigen::VectorXd x)
 {
     PetCurve::VertexHandle v0, v1;
     v0 = curve_->from_vertex_handle(h_hnd);
