@@ -411,7 +411,7 @@ double TangentProjection::dt_full(const VecXd& x, const VecXd& grads)
     return dt;
 }
 
-Eigen::Vector3d TangentProjection::ComputeEdge(const PetCurve::HalfedgeHandle &h_hnd, const Eigen::VectorXd x)
+Eigen::Vector3d TangentProjection::ComputeEdg(const PetCurve::HalfedgeHandle &h_hnd, const Eigen::VectorXd x)
 {
     PetCurve::VertexHandle v0, v1;
     v0 = curve_->from_vertex_handle(h_hnd);
@@ -446,13 +446,7 @@ int TangentProjection::ComputeEnergy(const Eigen::VectorXd& x, double& energy)
             l_f = edge_length_mapping_[h_f];
             l = l_e + l_f;
             l /= 2;
-//            energy += 2*parameter_.BendingEnergyCoef / l * (l_e*l_f - e.dot(f)) / (l_e*l_f + e.dot(f));
             energy += 2*parameter_.BendingEnergyCoef / l * (e.norm()*f.norm() - e.dot(f)) / (e.norm()*f.norm() + e.dot(f));
-            Eigen::Vector3d Kb = ComputeKb(e,f);
-            double d = Kb.squaredNorm();
-            double d2 = (e.norm()*f.norm() - e.dot(f)) / (e.norm()*f.norm() + e.dot(f));
-            d -= 4 * d2;
-            d2 = d;
         }
     }
     // twisting energy
