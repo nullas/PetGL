@@ -84,7 +84,12 @@ void PetGL::loadPlugins()
          pplugin = qobject_cast<PetPluginInterface *>(plugin);
          pplugin->initial(this);
          PluginLists.push_back(pplugin);
-         connect(pplugin, SIGNAL(updateViewNeeded(int)), this, SLOT(updateView(int)));
+         connect(pplugin, SIGNAL(updateViewNeeded()), this, SLOT(updateView()));
+     }
+     else
+     {
+         std::cout << fileName.toStdString() << " tried" << std::endl;
+         std::cout << loader.errorString().toStdString() << std::endl;
      }
     }
 }
@@ -292,18 +297,11 @@ bool PetGL::setCurrentMesh(PetMesh* mesh)
     return false;
 }
 
-void PetGL::updateView(int level)
+void PetGL::updateView()
 {
-    if (level == 0)
-    {
-        PetMesh* pmesh = getCurrentMesh();
-        if (pmesh)
-            pmesh->updateVBO();
-    }
-    else
-    {
-        for(std::vector<PetMesh*>::const_iterator it= PetMeshLists.begin(); it != PetMeshLists.end(); ++it)
-            (*it)->updateVBO();
-    }
+    draw_mutex_.lock();
+    for(std::vector<PetMesh*>::const_iterator it= PetMeshLists.begin(); it != PetMeshLists.end(); ++it)
+        (*it)->updateVBO();
     ui->MainViewer->updateGL();
+    draw_mutex_.unlock();
 }

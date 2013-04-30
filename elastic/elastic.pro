@@ -22,13 +22,15 @@ SOURCES += elastic.cpp \
     optimize.cpp \
     optimize_elastic.cpp \
     eigen_hamilton.cpp \
-    projection_thread.cpp
+    projection_thread.cpp \
+    projection.cpp
 
 HEADERS += elastic.h \
     optimize.h \
     optimize_elastic.h \
     eigen_hamilton.h \
-    projection_thread.h
+    projection_thread.h \
+    projection.h
 
 FORMS += \
     elasticpanel.ui

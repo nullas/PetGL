@@ -7,6 +7,7 @@
 #include "optimize_elastic.h"
 #include "eigen_hamilton.h"
 #include "ui_elasticpanel.h"
+#include "projection_thread.h"
 
 Q_EXPORT_PLUGIN2(PLUGIN_NAME, Elastic)
 
@@ -16,10 +17,17 @@ Elastic::Elastic() : ui(new Ui::ElasticPanel), Mepsilon(_Mepsilon)
     curveToOptimize = NULL;
     pmesh = NULL;
     pcurve = NULL;
+    pt_ = NULL;
 }
 
 Elastic::~Elastic()
 {
+    if (pt_ != NULL)
+    {
+        ProjectionThreading* pt = dynamic_cast<ProjectionThreading*>(pt_);
+        pt->stop();
+        sleep(1);
+    }
     delete ui;
     delete tabPluginScrollArea;
 }
@@ -42,9 +50,7 @@ void Elastic::addTabWidget(const char* pluginName)
         tabPluginScrollArea->setWidget(tabPluginWidget);
         tabPluginIndex = tabPlugin->addTab(tabPluginScrollArea,tr(pluginName));
         tabPlugin->setCurrentIndex(tabPluginIndex);
-
         tabPluginScrollArea->setWidgetResizable(true);
-
         setupTabWidget();
     }
 }
@@ -128,6 +134,8 @@ void Elastic::setupTabWidget()
             this, SLOT(on_spinBox_ProjectionIter_editingFinished()));
     connect(ui->spinBox_max_step, SIGNAL(editingFinished()),
             this, SLOT(on_spinBox_max_step_editingFinished()));
+    connect(ui->pushButton_projectionThread, SIGNAL(clicked()),
+            this, SLOT(on_pushButton_projectionThread_clicked()));
 
     r = ui->doubleSpinBox_collisionradius->value();
     pO.r = r;
@@ -614,7 +622,7 @@ void Elastic::on_pushButton_doitright_clicked()
         std::cout << "\n\n*** The problem FAILED!\n" << std::endl;
     }
 
-    pgl->updateView(1);
+    pgl->updateView();
 }
 
 
@@ -630,7 +638,7 @@ void Elastic::on_doubleSpinBox_BendingEnergyCoef_editingFinished()
 
 void Elastic::on_pushButton_test_clicked()
 {
-    emit updateViewNeeded(0);
+    emit updateViewNeeded();
 }
 
 void Elastic::on_pushButton_wholeCurvesInteriorVertices_clicked()
@@ -712,7 +720,7 @@ void Elastic::on_pushButton_optimize_clicked()
     std::cout << "\n\n*** The problem FAILED!\n" << std::endl;
     }
 
-    pgl->updateView(1);
+    pgl->updateView();
 }
 
 void Elastic::on_pushButton_exprotSelection_clicked()
@@ -927,7 +935,7 @@ void Elastic::on_pushButton_doItRightIter_clicked()
             std::cout << "\n\n*** The problem FAILED!\n" << std::endl;
         }
 
-        pgl->updateView(1);
+        pgl->updateView();
         fin >> cType;
         while (!fin.eof() && cType != 'S') fin >> cType;
         if (fin.eof()) break;
@@ -1145,7 +1153,7 @@ void Elastic::on_pushButton_twist_clicked()
         {
             std::cout << "\n\n*** The problem FAILED!\n" << std::endl;
         }
-        pgl->updateView(1);
+        pgl->updateView();
         fin >> cType;
         while (!fin.eof() && cType != 'S') fin >> cType;
         if (fin.eof()) break;
@@ -1305,7 +1313,7 @@ void Elastic::on_pushButton_hamiltonProj_clicked()
         HamiltonProjection hp(this);
         hp.check_derivative(ui->checkBox_derivativesCheck->isChecked());
         while (hp.Next() == 0)
-            pgl->updateView(1);
+            pgl->updateView();
         fin >> cType;
         while (!fin.eof() && cType != 'S') fin >> cType;
         if (fin.eof()) break;
@@ -1330,4 +1338,60 @@ void Elastic::on_spinBox_ProjectionIter_editingFinished()
 void Elastic::on_spinBox_max_step_editingFinished()
 {
     pO.max_steps = ui->spinBox_max_step->value();
+}
+
+void Elastic::on_pushButton_projectionThread_clicked()
+{
+    static ProjectionThreading *pt=NULL;
+    if (pt_ == NULL)
+    {
+
+        QString filename = \
+                QFileDialog::getOpenFileName(tabPlugin, \
+                                             tr("Optimize"), \
+                                             "/home/nullas/workspace/PetGL/meshes", \
+                                             tr("Optimization (*.toit)"));
+        if (filename.isEmpty()) return;
+        QFileInfo finfo = QFileInfo(filename);
+        QDir dir = finfo.absoluteDir();
+        ifstream fin;
+        fin.open(filename.toAscii(), ios::in);
+        if (!fin.is_open())
+        {
+            cout<< "Read file error" << filename.toStdString() <<endl;
+            return;
+        }
+
+        std::string fname;
+        fin >> fname;
+        if (fin.eof()) return;
+        fname = dir.filePath(QString(fname.c_str())).toStdString();
+        PetCurve *mesh = new PetCurve();
+        if(!mesh->read_curve(QString(fname.c_str()))) return;
+
+        pgl->AddPetMesh(mesh);
+
+        PetMesh* pmesh = mesh;
+        if (!pmesh) return;
+        if (!pmesh->iscurve()) return;
+        curveToOptimize = dynamic_cast<PetCurve*>(pmesh);
+        fin.close();
+        pt = new ProjectionThreading(this, filename);
+        pt_ = pt;
+        connect(pt, SIGNAL(UpdateView()), this, SIGNAL(updateViewNeeded()));
+        connect(pt_, SIGNAL(finished()), this, SLOT(DeleteProjectionThreading()));
+        pt->start();
+    }
+    else
+    {
+        pt->stop();
+        sleep(1);
+    }
+}
+
+void Elastic::DeleteProjectionThreading()
+{
+    ProjectionThreading* pt = dynamic_cast<ProjectionThreading*>(pt_);
+    delete pt;
+    pt_ = NULL;
 }

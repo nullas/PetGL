@@ -12,7 +12,7 @@ class PetPluginInterface : public QObject
     Q_OBJECT
 
 signals:
-    void updateViewNeeded(int level=0);
+    void updateViewNeeded();
 public slots:
 
 public:

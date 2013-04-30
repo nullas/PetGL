@@ -9,7 +9,8 @@
 #include <QMainWindow>
 #include <QSignalMapper>
 #include <QMenu>
-
+#include <QThread>
+#include <QMutex>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 
@@ -40,7 +41,7 @@ public:
 
 
 public slots:
-    void updateView(int level=0);
+    void updateView();
     
 private slots:
     void on_actionLoad_mesh_triggered();
@@ -57,7 +58,7 @@ private:
     QSignalMapper *signalMapper;
     QStreamRedirect* qout;
     Ui::MainWindow *ui;
-
+    QMutex draw_mutex_;
 };
 
 #endif // PETGL_H

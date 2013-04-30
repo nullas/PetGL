@@ -7,7 +7,7 @@
 #include <QString>
 #include <QScrollArea>
 #include <QGridLayout>
-
+#include <QThread>
 #include <coin/IpTNLP.hpp>
 
 #include "defs.h"
@@ -69,6 +69,7 @@ public:
 
     pOptimize pO;
 
+signals:
 
 private slots:
     void on_selectcurve_clicked();
@@ -132,6 +133,10 @@ private slots:
     void on_spinBox_ProjectionIter_editingFinished();
 
     void on_spinBox_max_step_editingFinished();
+
+    void on_pushButton_projectionThread_clicked();
+
+    void DeleteProjectionThreading();
 
 public:
     PetGL* pgl;
@@ -198,10 +203,8 @@ public:
     void setPointsFixed(const std::vector<PetCurve::VertexHandle>& hnd);
 
     void computeRotation();
-
-
-
     void SetupIpoptOptions(Ipopt::SmartPtr<Ipopt::IpoptApplication> &);
+    QThread *pt_;
 };
 
 #endif // ELASTIC_H
