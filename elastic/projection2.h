@@ -1,5 +1,5 @@
-#ifndef PROJECTION_H
-#define PROJECTION_H
+#ifndef PROJECTION2_H
+#define PROJECTION2_H
 #include <Eigen/Core>
 #include <Eigen/Sparse>
 #include <fstream>
@@ -10,7 +10,7 @@
 
 
 
-class TangentProjection
+class TangentProjection2
 {
 public:
     typedef struct
@@ -25,8 +25,8 @@ public:
     typedef Eigen::Vector3d Vec3d;
     typedef Eigen::SparseMatrix<double, Eigen::ColMajor> SpMat;
     typedef Eigen::VectorXd VecXd;
-    TangentProjection(PetCurve *curve, const Constraints &_cons, const Elastic::pOptimize& pO);
-    ~TangentProjection();
+    TangentProjection2(PetCurve *curve, const Constraints &_cons, const Elastic::pOptimize& pO);
+    ~TangentProjection2();
     PetCurve* curve_;
     Constraints constraints_;
     std::vector<PetCurve::VertexHandle> vertices_;
@@ -105,4 +105,5 @@ public:
     void tol(double _tol);
     void careful(bool _c);
 };
-#endif // PROJECTION_H
+
+#endif // PROJECTION2_H

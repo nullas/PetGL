@@ -1,4 +1,4 @@
-#include "projection.h"
+#include "projection2.h"
 #include "eigen_hamilton.h"
 #include <limits>
 #include <Eigen/SPQRSupport>
@@ -10,12 +10,12 @@
 
 #define M_EP 1e-13
 
-TangentProjection::TangentProjection(PetCurve *curve, const Constraints& _cons, const Elastic::pOptimize& pO) :
+TangentProjection2::TangentProjection2(PetCurve *curve, const Constraints& _cons, const Elastic::pOptimize& pO) :
     check_derivative_(false), tangent_gradient_(true), initialized_(false)
 {
     curve_ = curve;
     constraints_ = _cons;
-    for (int i = 0; i < constraints_.PlaneConstraints.size(); ++i)
+    for (unsigned int i = 0; i < constraints_.PlaneConstraints.size(); ++i)
     {
         constraints_.PlaneConstraintsInfo[i].first.normalize();
     }
@@ -52,12 +52,12 @@ TangentProjection::TangentProjection(PetCurve *curve, const Constraints& _cons, 
         std::cout << "open projection.out fail\n" << std::endl;
 }
 
-TangentProjection::~TangentProjection()
+TangentProjection2::~TangentProjection2()
 {
     fout.close();
 }
 
-int TangentProjection::GetStartPoint()
+int TangentProjection2::GetStartPoint()
 {
     Point po;
     for (unsigned int i = 0; i < vertices_.size(); ++i)
@@ -71,7 +71,7 @@ int TangentProjection::GetStartPoint()
     return 0;
 }
 
-int TangentProjection::point_index(const PetCurve::VertexHandle &v_hnd)
+int TangentProjection2::point_index(const PetCurve::VertexHandle &v_hnd)
 {
     if (idx_mapping_.count(v_hnd))
     {
@@ -83,7 +83,7 @@ int TangentProjection::point_index(const PetCurve::VertexHandle &v_hnd)
     }
 }
 
-Eigen::Vector3d TangentProjection::point(const PetCurve::VertexHandle& v_hnd, const Eigen::VectorXd& x)
+Eigen::Vector3d TangentProjection2::point(const PetCurve::VertexHandle& v_hnd, const Eigen::VectorXd& x)
 {
     int i = point_index(v_hnd);
     if (i >= 0)
@@ -96,7 +96,7 @@ Eigen::Vector3d TangentProjection::point(const PetCurve::VertexHandle& v_hnd, co
     }
 }
 
-void TangentProjection::GetHalfedges()
+void TangentProjection2::GetHalfedges()
 {
     PetCurve::CurveIter c_it = curve_->faces_begin(), c_end = curve_->faces_end();
     PetCurve::CurveHalfedgeIter ch_it;
@@ -116,7 +116,7 @@ void TangentProjection::GetHalfedges()
     }
 }
 
-void TangentProjection::GetEdgeLengths()
+void TangentProjection2::GetEdgeLengths()
 {
     PetCurve::CurveIter c_it = curve_->faces_begin(), c_end = curve_->faces_end();
     PetCurve::CurveHalfedgeIter ch_it;
@@ -139,7 +139,7 @@ void TangentProjection::GetEdgeLengths()
     }
 }
 
-void TangentProjection::GetCrossings()
+void TangentProjection2::GetCrossings()
 {
     PetCurve::HalfedgeHandle prev_h_hnd, next_h_hnd;
     double r_sq = parameter_.r * parameter_.r;
@@ -157,9 +157,9 @@ void TangentProjection::GetCrossings()
     }
 }
 
-int TangentProjection::UpdateCrossings(const Eigen::VectorXd& x)
+int TangentProjection2::UpdateCrossings(const Eigen::VectorXd& x)
 {
-    PetCurve::HalfedgeHandle first, second;
+    PetCurve::HalfedgeHandle first = first, second;
     int idx = 0;
     int idx_end = crossings_.size();
     double min_dist;
@@ -167,7 +167,10 @@ int TangentProjection::UpdateCrossings(const Eigen::VectorXd& x)
     pair<PetCurve::HalfedgeHandle, PetCurve::HalfedgeHandle> update;
     for (idx = 0; idx < idx_end; ++idx)
     {
-        min_dist = numeric_limits<double>::max();
+        first = crossings_[idx].first;
+        second = crossings_[idx].second;
+        update = pair<PetCurve::HalfedgeHandle, PetCurve::HalfedgeHandle>(first, second);
+        min_dist = LineSegmentsSqDistance(first, second, x);
         for (first = curve_->prev_halfedge_handle(crossings_[idx].first); first != curve_->next_halfedge_handle(crossings_[idx].first); first = curve_->next_halfedge_handle(first))
         {
             for (second = curve_->prev_halfedge_handle(crossings_[idx].second); second != curve_->next_halfedge_handle(crossings_[idx].second); second = curve_->next_halfedge_handle(second))
@@ -185,7 +188,7 @@ int TangentProjection::UpdateCrossings(const Eigen::VectorXd& x)
     return 0;
 }
 
-double TangentProjection::LineSegmentsSqDistance(const Point &p0, const Point &p1, const Point &q0, const Point &q1)
+double TangentProjection2::LineSegmentsSqDistance(const Point &p0, const Point &p1, const Point &q0, const Point &q1)
 {
     Point u = p1 - p0, v = q1 - q0, w = p0 - q0;
     double a = u | u;
@@ -253,7 +256,7 @@ double TangentProjection::LineSegmentsSqDistance(const Point &p0, const Point &p
     return dP.sqrnorm();
 }
 
-double TangentProjection::LineSegmentsSqDistance(const Eigen::Vector3d& p0 ,const Eigen::Vector3d& p1, const Eigen::Vector3d& q0, const Eigen::Vector3d& q1)
+double TangentProjection2::LineSegmentsSqDistance(const Eigen::Vector3d& p0 ,const Eigen::Vector3d& p1, const Eigen::Vector3d& q0, const Eigen::Vector3d& q1)
 {
     Point pp0(&p0.x());
     Point pp1(&p1.x());
@@ -262,7 +265,7 @@ double TangentProjection::LineSegmentsSqDistance(const Eigen::Vector3d& p0 ,cons
     return LineSegmentsSqDistance(pp0, pp1, pq0, pq1);
 }
 
-double TangentProjection::LineSegmentsSqDistance(const PetCurve::HalfedgeHandle& h_hnd1, const PetCurve::HalfedgeHandle& h_hnd2)
+double TangentProjection2::LineSegmentsSqDistance(const PetCurve::HalfedgeHandle& h_hnd1, const PetCurve::HalfedgeHandle& h_hnd2)
 {
     Point v0 = curve_->point(curve_->from_vertex_handle(h_hnd1));
     Point v1 = curve_->point(curve_->to_vertex_handle(h_hnd1));
@@ -271,7 +274,7 @@ double TangentProjection::LineSegmentsSqDistance(const PetCurve::HalfedgeHandle&
     return LineSegmentsSqDistance(v0, v1, v2, v3);
 }
 
-double TangentProjection::LineSegmentsSqDistance(const PetCurve::HalfedgeHandle& h_hnd1, const PetCurve::HalfedgeHandle& h_hnd2, const Eigen::VectorXd& x)
+double TangentProjection2::LineSegmentsSqDistance(const PetCurve::HalfedgeHandle& h_hnd1, const PetCurve::HalfedgeHandle& h_hnd2, const Eigen::VectorXd& x)
 {
     Vec3d v0 = point(curve_->from_vertex_handle(h_hnd1), x);
     Vec3d v1 = point(curve_->to_vertex_handle(h_hnd1), x);
@@ -280,7 +283,7 @@ double TangentProjection::LineSegmentsSqDistance(const PetCurve::HalfedgeHandle&
     return LineSegmentsSqDistance(v0, v1, v2, v3);
 }
 
-int TangentProjection::Next()
+int TangentProjection2::Next()
 {
     int rlt = 0;
     if (!initialized_)
@@ -321,7 +324,7 @@ int TangentProjection::Next()
     return rlt;
 }
 
-int TangentProjection::SymplecticEuler()
+int TangentProjection2::SymplecticEuler()
 {
     static Eigen::VectorXd v(n_constraints_);
     static Eigen::SPQR<SpMat> qr;
@@ -358,7 +361,7 @@ int TangentProjection::SymplecticEuler()
     return 0;
 }
 
-double TangentProjection::dt(const Eigen::VectorXd& x, const Eigen::VectorXd& grads)
+double TangentProjection2::dt(const Eigen::VectorXd& x, const Eigen::VectorXd& grads)
 {
     static const double gr = 0.618;
     static int typical_start = 0;
@@ -391,7 +394,7 @@ double TangentProjection::dt(const Eigen::VectorXd& x, const Eigen::VectorXd& gr
     return dt;
 }
 
-double TangentProjection::dt_full(const VecXd& x, const VecXd& grads)
+double TangentProjection2::dt_full(const VecXd& x, const VecXd& grads)
 {
     static const double gr = 0.618;
     double dt = 0;
@@ -419,7 +422,7 @@ double TangentProjection::dt_full(const VecXd& x, const VecXd& grads)
     return dt;
 }
 
-Eigen::Vector3d TangentProjection::ComputeEdge(const PetCurve::HalfedgeHandle &h_hnd, const Eigen::VectorXd x)
+Eigen::Vector3d TangentProjection2::ComputeEdge(const PetCurve::HalfedgeHandle &h_hnd, const Eigen::VectorXd x)
 {
     PetCurve::VertexHandle v0, v1;
     v0 = curve_->from_vertex_handle(h_hnd);
@@ -429,7 +432,7 @@ Eigen::Vector3d TangentProjection::ComputeEdge(const PetCurve::HalfedgeHandle &h
     return p1 - p0;
 }
 
-int TangentProjection::ComputeEnergy(const Eigen::VectorXd& x, double& energy)
+int TangentProjection2::ComputeEnergy(const Eigen::VectorXd& x, double& energy)
 {
     energy = 0;
     // bending energy
@@ -454,7 +457,7 @@ int TangentProjection::ComputeEnergy(const Eigen::VectorXd& x, double& energy)
             l_f = edge_length_mapping_[h_f];
             l = l_e + l_f;
             l /= 2;
-            energy += 2*parameter_.BendingEnergyCoef / l * (e.norm()*f.norm() - e.dot(f)) / (e.norm()*f.norm() + e.dot(f));
+            energy += 2*parameter_.BendingEnergyCoef / l * (l_e*l_f- e.dot(f)) / (l_e*l_f + e.dot(f));
         }
     }
     // twisting energy
@@ -466,7 +469,6 @@ int TangentProjection::ComputeEnergy(const Eigen::VectorXd& x, double& energy)
         theta = UpdateTheta(c_it.handle(), x);
         energy += parameter_.TwistingEnergyCoef * theta * theta / l;
     }
-    return 0;
     // position constraints
     std::vector<pair<PetCurve::VertexHandle, PetCurve::Point> >::const_iterator pc_it = constraints_.PositionConstraints.begin(),
             pc_end = constraints_.PositionConstraints.end();
@@ -491,9 +493,10 @@ int TangentProjection::ComputeEnergy(const Eigen::VectorXd& x, double& energy)
         plane_energy = p.dot(axis) + constraints_.PlaneConstraintsInfo[i].second;
         energy += parameter_.PlaneConstraintsCoef * plane_energy * plane_energy;
     }
+    return 0;
 }
 
-int TangentProjection::ComputeG(const Eigen::VectorXd& x, Eigen::VectorXd& g)
+int TangentProjection2::ComputeG(const Eigen::VectorXd& x, Eigen::VectorXd& g)
 {
     Eigen::Vector3d e, f;
     unsigned int i = 0;
@@ -511,7 +514,7 @@ int TangentProjection::ComputeG(const Eigen::VectorXd& x, Eigen::VectorXd& g)
     return 0;
 }
 
-double TangentProjection::CrossLineSegmentDistance(unsigned int i, const Eigen::VectorXd& x)
+double TangentProjection2::CrossLineSegmentDistance(unsigned int i, const Eigen::VectorXd& x)
 {
     Eigen::Vector3d p0 = point(curve_->from_vertex_handle(crossings_[i].first), x);
     Eigen::Vector3d p1 = point(curve_->to_vertex_handle(crossings_[i].first), x);
@@ -521,7 +524,7 @@ double TangentProjection::CrossLineSegmentDistance(unsigned int i, const Eigen::
     return w.dot((p0 + p1) / 2 - (q0 + q1) / 2);
 }
 
-int TangentProjection::ComputeGradientG(const Eigen::VectorXd& x, SpMat &g)
+int TangentProjection2::ComputeGradientG(const Eigen::VectorXd& x, SpMat &g)
 {
     g.setZero();
     triplet_.clear();
@@ -556,7 +559,7 @@ int TangentProjection::ComputeGradientG(const Eigen::VectorXd& x, SpMat &g)
     return 0;
 }
 
-void TangentProjection::ComputeGradientCrossing(const int idx_cross, const int base, const Eigen::VectorXd& x, std::vector<Tri>& triplet)
+void TangentProjection2::ComputeGradientCrossing(const int idx_cross, const int base, const Eigen::VectorXd& x, std::vector<Tri>& triplet)
 {
     /*------------------------------------------
                    p0_  q1
@@ -600,14 +603,14 @@ void TangentProjection::ComputeGradientCrossing(const int idx_cross, const int b
     }
 }
 
-void TangentProjection::InsertTriplet(const int i, const int j, const Vec3d& v, std::vector<Tri>& triplet)
+void TangentProjection2::InsertTriplet(const int i, const int j, const Vec3d& v, std::vector<Tri>& triplet)
 {
     triplet.push_back(Tri(3*i, j, v(0)));
     triplet.push_back(Tri(3*i + 1, j, v(1)));
     triplet.push_back(Tri(3*i + 2, j, v(2)));
 }
 
-double TangentProjection::CrossingDistance(const unsigned int i, const Eigen::VectorXd& x)
+double TangentProjection2::CrossingDistance(const unsigned int i, const Eigen::VectorXd& x)
 {
     Eigen::Vector3d p0 = point(curve_->from_vertex_handle(crossings_[i].first), x);
     Eigen::Vector3d p1 = point(curve_->to_vertex_handle(crossings_[i].first), x);
@@ -616,7 +619,7 @@ double TangentProjection::CrossingDistance(const unsigned int i, const Eigen::Ve
     return LineSegmentsSqDistance(p0, p1, q0, q1);
 }
 
-int TangentProjection::ComputeGradients(const Eigen::VectorXd& x, Eigen::VectorXd& gradients)
+int TangentProjection2::ComputeGradients(const Eigen::VectorXd& x, Eigen::VectorXd& gradients)
 {
     gradients.setZero(n_variables_);
     // bending energy
@@ -625,7 +628,6 @@ int TangentProjection::ComputeGradients(const Eigen::VectorXd& x, Eigen::VectorX
     PetCurve::HalfedgeHandle h_e, h_f;
     PetCurve::VertexHandle v0, v1, v2;
     Eigen::Vector3d e, f;
-    Eigen::Vector3d G;
     int i;
     double l, l_e, l_f, d, coef;
     for (; c_it != c_end; ++c_it)
@@ -644,21 +646,21 @@ int TangentProjection::ComputeGradients(const Eigen::VectorXd& x, Eigen::VectorX
             l = l_e + l_f;
             d = l_e * l_f;
             l /= 2;
-            coef = 2*parameter_.BendingEnergyCoef / l;
+            coef = 4*parameter_.BendingEnergyCoef / l * d / pow(d + e.dot(f),2);
             i = point_index(v0);
             if (i >= 0)
             {
-                gradients.segment(3 * i, 3) += coef * ComputeGradientBending(e, f, -1);
+                gradients.segment(3 * i, 3) += coef * f;
             }
             i = point_index(v1);
             if (i >= 0)
             {
-                gradients.segment(3 * i, 3) += coef * ComputeGradientBending(e, f, 0);
+                gradients.segment(3 * i, 3) += coef * (e - f);
             }
             i = point_index(v2);
             if (i >= 0)
             {
-                gradients.segment(3 * i, 3) += coef * ComputeGradientBending(e, f, 1);
+                gradients.segment(3 * i, 3) += -coef * e;
             }
         }
     }
@@ -733,7 +735,7 @@ int TangentProjection::ComputeGradients(const Eigen::VectorXd& x, Eigen::VectorX
     return 0;
 }
 
-TangentProjection::Vec3d TangentProjection::ComputeGradientBending(const Vec3d& e, const Vec3d f, int i)
+TangentProjection2::Vec3d TangentProjection2::ComputeGradientBending(const Vec3d& e, const Vec3d f, int i)
 {
     double r = 2 * e.dot(f) / (e.norm()*f.norm() + e.dot(f));
     double deno = -e.norm()*f.norm() - e.dot(f);
@@ -755,7 +757,7 @@ TangentProjection::Vec3d TangentProjection::ComputeGradientBending(const Vec3d& 
     return rlt;
 }
 
-double TangentProjection::UpdateTheta(const PetCurve::CurveHandle& curve, const Eigen::VectorXd& x)
+double TangentProjection2::UpdateTheta(const PetCurve::CurveHandle& curve, const Eigen::VectorXd& x)
 {
     double writhe_fraction = ComputeWritheFraction(curve, x);
     double diff = numeric_limits<double>::max();
@@ -778,7 +780,7 @@ double TangentProjection::UpdateTheta(const PetCurve::CurveHandle& curve, const 
     return theta;
 }
 
-double TangentProjection::ComputeWritheFraction(const PetCurve::CurveHandle& curve, const Eigen::VectorXd& x)
+double TangentProjection2::ComputeWritheFraction(const PetCurve::CurveHandle& curve, const Eigen::VectorXd& x)
 {
     // find a vector perpendicular to t_0;
     PetCurve::CurveHalfedgeIter ch_it;
@@ -805,7 +807,7 @@ double TangentProjection::ComputeWritheFraction(const PetCurve::CurveHandle& cur
     return writhe_fraction;
 }
 
-int TangentProjection::InitialTwisting()
+int TangentProjection2::InitialTwisting()
 {
     PetCurve::CurveIter c_it = curve_->faces_begin(),
             c_end = curve_->faces_end();
@@ -821,7 +823,7 @@ int TangentProjection::InitialTwisting()
     return 0;
 }
 
-double TangentProjection::ComputeDifferenceAngle(const Vec3d &axis, const Vec3d &up, const Vec3d &x)
+double TangentProjection2::ComputeDifferenceAngle(const Vec3d &axis, const Vec3d &up, const Vec3d &x)
 {
     Vec3d axis_normed = axis.normalized();
     Vec3d up_normed = up.normalized();
@@ -831,7 +833,7 @@ double TangentProjection::ComputeDifferenceAngle(const Vec3d &axis, const Vec3d 
     return atan2(pr_y, pr_x);
 }
 
-Eigen::Vector3d TangentProjection::ParallelTransport(Vec3d t1, Vec3d t2, const Vec3d& x)
+Eigen::Vector3d TangentProjection2::ParallelTransport(Vec3d t1, Vec3d t2, const Vec3d& x)
 {
     t1.normalize();
     t2.normalize();
@@ -851,14 +853,14 @@ Eigen::Vector3d TangentProjection::ParallelTransport(Vec3d t1, Vec3d t2, const V
     }
 }
 
-Eigen::Vector3d TangentProjection::ComputeKb(const Eigen::Vector3d& e, const Eigen::Vector3d& f)
+Eigen::Vector3d TangentProjection2::ComputeKb(const Eigen::Vector3d& e, const Eigen::Vector3d& f)
 {
     Eigen::Vector3d rlt = e.cross(f);
     rlt *= 2 / (e.norm() * f.norm() + e.dot(f));
     return rlt;
 }
 
-Eigen::Matrix3d TangentProjection::ComputeJKb(const Eigen::Vector3d& e, const Eigen::Vector3d& f, int i)
+Eigen::Matrix3d TangentProjection2::ComputeJKb(const Eigen::Vector3d& e, const Eigen::Vector3d& f, int i)
 {
     Eigen::Vector3d Kb = ComputeKb(e, f);
     Eigen::Matrix3d m = Eigen::Matrix3d::Zero();
@@ -872,7 +874,7 @@ Eigen::Matrix3d TangentProjection::ComputeJKb(const Eigen::Vector3d& e, const Ei
     return m;
 }
 
-Eigen::Matrix3d TangentProjection::CrossMatrix(const Eigen::Vector3d &p)
+Eigen::Matrix3d TangentProjection2::CrossMatrix(const Eigen::Vector3d &p)
 {
     Eigen::Matrix3d m = Eigen::Matrix3d::Zero();
     m(0,1) = -p[2];
@@ -884,7 +886,7 @@ Eigen::Matrix3d TangentProjection::CrossMatrix(const Eigen::Vector3d &p)
     return m;
 }
 
-int TangentProjection::Projection()
+int TangentProjection2::Projection()
 {
     static Eigen::VectorXd lambda(n_constraints_), d_lambda(n_constraints_);
     static SpMat grad_g_T(n_constraints_, n_variables_), GTG(n_constraints_, n_constraints_);
@@ -896,10 +898,9 @@ int TangentProjection::Projection()
     GTG = grad_g_T * grad_g_;
 //    Eigen::SPQR<SpMat> solver2(GTG);
 //    int i2 = solver2.rank();
-    Eigen::UmfPackLU<SpMat> solver(GTG);
-    d_lambda.setOnes(n_constraints_);
+    Eigen::SPQR<SpMat> solver(GTG);
     int i = parameter_.itertations;
-    while (MaxNorm(d_lambda) > 1e-8 && i > 0)
+    do
     {
         lhs_ = x_ + grad_g_ * lambda;
         rlt = ComputeG(lhs_, g_);
@@ -909,6 +910,7 @@ int TangentProjection::Projection()
         lambda -= d_lambda;
         i--;
     }
+    while (MaxNorm(d_lambda) > 1e-8 && i > 0 && MaxNorm(g_) > 1e-11);
     if (i == 0)
         return -1;
     lambda -= d_lambda;
@@ -921,7 +923,7 @@ int TangentProjection::Projection()
     return 0;
 }
 
-double TangentProjection::MaxNorm(const Eigen::VectorXd& x)
+double TangentProjection2::MaxNorm(const Eigen::VectorXd& x)
 {
     double low = x.minCoeff();
     double up = x.maxCoeff();
@@ -930,7 +932,7 @@ double TangentProjection::MaxNorm(const Eigen::VectorXd& x)
     return low < up ? up : low;
 }
 
-double TangentProjection::OneNorm(const VecXd &v)
+double TangentProjection2::OneNorm(const VecXd &v)
 {
     double rlt = 0;
     for (int i = 0; i < v.rows(); ++i)
@@ -940,7 +942,7 @@ double TangentProjection::OneNorm(const VecXd &v)
     return rlt;
 }
 
-int TangentProjection::UpdateMesh()
+int TangentProjection2::UpdateMesh()
 {
     int i = 0, end = vertices_.size();
     Vec3d p;
@@ -954,12 +956,12 @@ int TangentProjection::UpdateMesh()
     return 0;
 }
 
-void TangentProjection::check_derivative(bool check)
+void TangentProjection2::check_derivative(bool check)
 {
     check_derivative_ = check;
 }
 
-int TangentProjection::CheckDerivative()
+int TangentProjection2::CheckDerivative()
 {
     fout << "checking first derivatives..." << std::endl;
     fout << std::scientific;
@@ -1042,7 +1044,7 @@ int TangentProjection::CheckDerivative()
     return 0;
 }
 
-double TangentProjection::RelativeError(const double x, const double y)
+double TangentProjection2::RelativeError(const double x, const double y)
 {
     if (x - y < M_EP)
         return 0;
@@ -1052,12 +1054,12 @@ double TangentProjection::RelativeError(const double x, const double y)
         return std::abs(x - y) / std::abs(x);
 }
 
-double TangentProjection::Rand()
+double TangentProjection2::Rand()
 {
     return (double)rand() / 26681;
 }
 
-int TangentProjection::OutputStatus()
+int TangentProjection2::OutputStatus()
 {
     static time_t rawtime;
     static struct tm *timeinfo;
@@ -1076,25 +1078,27 @@ int TangentProjection::OutputStatus()
         time(&rawtime);
         timeinfo = localtime(&rawtime);
         strftime(timestring, 100, "%T", timeinfo);
-        fout << "step\tdt\t\tenergy\t\tviolation\t" << "timing\t\ttangent optimal\tdt\t\tprojection\t";
+        fout << setw(15) << "step" << setw(15) << "dt" << setw(15) << "energy" << setw(15) << "violation" << setw(15) << "timing";
+        fout << setw(15) << "tan optimal" << setw(15) << "find dt" << setw(15) << "projection\t";
         fout << timestring << std::endl;
     }
     clock_t toc = clock();
-    fout << run_.step << "\t" << dt_ << "\t";
-    fout << energy << "\t" << MaxNorm(g_) << "\t" << (double)(toc - tic) / CLOCKS_PER_SEC << "\t";
-    fout << run_.timing_tangent_optimal << "\t" << run_.timing_dt << "\t" << run_.timing_projection << std::endl;
+    fout << setw(15) << run_.step << setw(15) << dt_;
+    fout << setw(15) << energy << setw(15) << MaxNorm(g_) << setw(12) << (double)(toc - tic) / CLOCKS_PER_SEC;
+    fout << setw(15) << run_.timing_tangent_optimal << setw(15) << run_.timing_dt << setw(15) << run_.timing_projection << std::endl;
     tic = toc;
     if (run_.step >= parameter_.max_steps)
         return 1;
     return 0;
 }
 
-void TangentProjection::tol(double _tol)
+void TangentProjection2::tol(double _tol)
 {
     tol_ = _tol;
 }
 
-void TangentProjection::careful(bool _c)
+void TangentProjection2::careful(bool _c)
 {
     careful_ = _c;
 }
+

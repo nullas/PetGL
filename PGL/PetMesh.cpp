@@ -308,7 +308,7 @@ void PetMesh::render()
         glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[3]);
         glColorPointer(4, GL_FLOAT, 0, 0);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferObjs[2]);
-        glDrawElements(GL_POLYGON, iSizeofidxFaces + n_faces(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLE_FAN, iSizeofidxFaces + n_faces(), GL_UNSIGNED_INT, 0);
         glPopAttrib();
     }
 
@@ -351,7 +351,7 @@ void PetMesh::drawPickVertices()
     glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[0]);
     glVertexPointer(3, GL_FLOAT, 0, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferObjs[2]);
-    glDrawElements(GL_POLYGON, iSizeofidxFaces + n_faces(), GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLE_FAN, iSizeofidxFaces + n_faces(), GL_UNSIGNED_INT, 0);
     glEnableClientState(GL_COLOR_ARRAY);
     glEnableClientState(GL_NORMAL_ARRAY);
     unsigned int n_vertice = n_vertices();
@@ -400,7 +400,7 @@ void PetMesh::drawPickEdges()
     glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[0]);
     glVertexPointer(3, GL_FLOAT, 0, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferObjs[2]);
-    glDrawElements(GL_POLYGON, iSizeofidxFaces + n_faces(), GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLE_FAN, iSizeofidxFaces + n_faces(), GL_UNSIGNED_INT, 0);
     glEnableClientState(GL_COLOR_ARRAY);
     glEnableClientState(GL_NORMAL_ARRAY);
     unsigned int n_edges = v_n_edges();

@@ -217,7 +217,6 @@ bool Optimize::eval_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt:
     obj_value = 0;
     PointArray px = PointArray(x);
     Ipopt::Number t[3];
-    Ipopt::Number r = 0;
     double tmp;
     int i = 0, size = EnergyVertices.size();
     for (; i < size; i++)
@@ -225,9 +224,9 @@ bool Optimize::eval_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt:
         obj_value += computeBeta(i, x) / VerticesWeight[i];
     }
     obj_value *= 2 * pOp->BendingEnergyCoef;
-    i = 0;
+    double r = 0;
     size = PositionConstraints.size();
-    for (; i < size; i++)
+    for (i = 0; i < size; i++)
     {
         sub(px(PositionConstraints[i]), positions[i].data(), t);
         r += sqrnorm(t);
@@ -259,8 +258,7 @@ bool Optimize::eval_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt:
 bool Optimize::eval_grad_f(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt::Number *grad_f)
 {
     assert(n == n_variables);
-    UNUSED(new_x);
-    if (updateCross(x) == false) return false;
+    if (new_x && updateCross(x) == false) return false;
     Ipopt::Number t1[3], t2[3], t[3], e[3], f[3], tmp;
     Ipopt::Number* pV;
     PointArrayEdit pf = grad_f;
@@ -328,8 +326,7 @@ bool Optimize::eval_g(Ipopt::Index n, const Ipopt::Number *x, bool new_x, Ipopt:
 {
     UNUSED(n);
     UNUSED(m);
-    UNUSED(new_x);
-    if (updateCross(x) == false) return false;
+    if (new_x && updateCross(x) == false) return false;
     int i = 0, size = edges.size();
     for (; i < size; i++)
         g[i] = computeEdgeLength(i, x);
@@ -348,8 +345,7 @@ bool Optimize::eval_jac_g(Ipopt::Index n, const Ipopt::Number *x, bool new_x,
 {
     UNUSED(n);
     UNUSED(m);
-    UNUSED(new_x);
-
+    if (new_x && updateCross(x) == false) return false;
     Ipopt::Number e[3];
     int idx_nv, idx_pv;
     int idx = 0;
@@ -400,7 +396,6 @@ bool Optimize::eval_jac_g(Ipopt::Index n, const Ipopt::Number *x, bool new_x,
     }
     else
     {
-        if (updateCross(x) == false) return false;
         setZeros(values, nele_jac);
         int i = 0, size = edges.size();
         for (; i < size; i++)
@@ -443,7 +438,7 @@ bool Optimize::eval_h(Ipopt::Index n, const Ipopt::Number *x,
     UNUSED(n);
     UNUSED(m);
     UNUSED(new_lambda);
-    UNUSED(new_x);
+    if (new_x && updateCross(x) == false) return false;
     int idx_pv, idx_nv, idx_cv;
     Ipopt::Number e[3];
     int idx = 0;
@@ -1667,7 +1662,7 @@ bool Optimize::updateCross(const double* x)
         {
             std::cout << "Extension touched!\n" << std::endl;
             result = false;
-            break;
+            continue;
         }
         crossRef[idx_ref] = update;
     }

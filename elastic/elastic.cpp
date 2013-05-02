@@ -8,6 +8,7 @@
 #include "eigen_hamilton.h"
 #include "ui_elasticpanel.h"
 #include "projection_thread.h"
+#include "projection2_thread.h"
 
 Q_EXPORT_PLUGIN2(PLUGIN_NAME, Elastic)
 
@@ -136,6 +137,10 @@ void Elastic::setupTabWidget()
             this, SLOT(on_spinBox_max_step_editingFinished()));
     connect(ui->pushButton_projectionThread, SIGNAL(clicked()),
             this, SLOT(on_pushButton_projectionThread_clicked()));
+    connect(ui->pushButton_projection2Thread, SIGNAL(clicked()),
+            this, SLOT(on_pushButton_projection2Thread_clicked()));
+    connect(ui->checkBox_derivativesCheck, SIGNAL(clicked()),
+            this, SLOT(on_checkBox_derivativesCheck_clicked()));
 
     r = ui->doubleSpinBox_collisionradius->value();
     pO.r = r;
@@ -150,6 +155,7 @@ void Elastic::setupTabWidget()
     pO.twisting_fraction = ui->doubleSpinBox_twist_fraction->value();
     pO.itertations = ui->spinBox_ProjectionIter->value();
     pO.max_steps = ui->spinBox_max_step->value();
+    pO.check_derivatives = ui->checkBox_derivativesCheck->isChecked();
 }
 
 
@@ -700,7 +706,7 @@ void Elastic::on_pushButton_optimize_clicked()
     app->Options()->SetNumericValue("tol", 1e-9);
     app->Options()->SetStringValue("mu_strategy", "adaptive");
     app->Options()->SetStringValue("output_file", "ipopt.out");
-//    app->Options()->SetStringValue("derivative_test","second-order");
+    app->Options()->SetStringValue("derivative_test","second-order");
     app->Options()->SetNumericValue("point_perturbation_radius", 0.);
 //    app->Options()->SetNumericValue("derivative_test_perturbation", 1e-8);
 //    app->Options()->SetStringValue("linear_solver","ma57");
@@ -1384,6 +1390,8 @@ void Elastic::on_pushButton_projectionThread_clicked()
     }
     else
     {
+        pt = dynamic_cast<ProjectionThreading*>(pt_);
+        if (pt == NULL) return;
         pt->stop();
         sleep(1);
     }
@@ -1394,4 +1402,67 @@ void Elastic::DeleteProjectionThreading()
     ProjectionThreading* pt = dynamic_cast<ProjectionThreading*>(pt_);
     delete pt;
     pt_ = NULL;
+}
+
+void Elastic::DeleteProjectionThreading2()
+{
+    ProjectionThreading* pt = dynamic_cast<ProjectionThreading*>(pt_);
+    delete pt;
+    pt_ = NULL;
+}
+
+void Elastic::on_pushButton_projection2Thread_clicked()
+{
+    static ProjectionThreading2 *pt=NULL;
+    if (pt_ == NULL)
+    {
+
+        QString filename = \
+                QFileDialog::getOpenFileName(tabPlugin, \
+                                             tr("Optimize"), \
+                                             "/home/nullas/workspace/PetGL/meshes", \
+                                             tr("Optimization (*.toit)"));
+        if (filename.isEmpty()) return;
+        QFileInfo finfo = QFileInfo(filename);
+        QDir dir = finfo.absoluteDir();
+        ifstream fin;
+        fin.open(filename.toAscii(), ios::in);
+        if (!fin.is_open())
+        {
+            cout<< "Read file error" << filename.toStdString() <<endl;
+            return;
+        }
+
+        std::string fname;
+        fin >> fname;
+        if (fin.eof()) return;
+        fname = dir.filePath(QString(fname.c_str())).toStdString();
+        PetCurve *mesh = new PetCurve();
+        if(!mesh->read_curve(QString(fname.c_str()))) return;
+
+        pgl->AddPetMesh(mesh);
+
+        PetMesh* pmesh = mesh;
+        if (!pmesh) return;
+        if (!pmesh->iscurve()) return;
+        curveToOptimize = dynamic_cast<PetCurve*>(pmesh);
+        fin.close();
+        pt = new ProjectionThreading2(this, filename);
+        pt_ = pt;
+        connect(pt, SIGNAL(UpdateView()), this, SIGNAL(updateViewNeeded()));
+        connect(pt_, SIGNAL(finished()), this, SLOT(DeleteProjectionThreading2()));
+        pt->start();
+    }
+    else
+    {
+        pt = dynamic_cast<ProjectionThreading2*>(pt_);
+        if (pt == NULL) return;
+        pt->stop();
+        sleep(1);
+    }
+}
+
+void Elastic::on_checkBox_derivativesCheck_clicked()
+{
+    pO.check_derivatives = ui->checkBox_derivativesCheck->isChecked();
 }

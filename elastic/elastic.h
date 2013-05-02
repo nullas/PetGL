@@ -65,6 +65,7 @@ public:
         double dt;
         int itertations;
         int max_steps;
+        bool check_derivatives;
     }pOptimize;
 
     pOptimize pO;
@@ -137,6 +138,11 @@ private slots:
     void on_pushButton_projectionThread_clicked();
 
     void DeleteProjectionThreading();
+
+    void DeleteProjectionThreading2();
+    void on_pushButton_projection2Thread_clicked();
+
+    void on_checkBox_derivativesCheck_clicked();
 
 public:
     PetGL* pgl;

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>321</width>
-    <height>815</height>
+    <height>843</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,14 +20,14 @@
       <string>Optimize</string>
      </property>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="14" column="0">
+      <item row="15" column="0">
        <widget class="QLabel" name="label_dt">
         <property name="text">
          <string>dt</string>
         </property>
        </widget>
       </item>
-      <item row="6" column="1">
+      <item row="7" column="1">
        <widget class="QDoubleSpinBox" name="doubleSpinBox_BendingEnergyCoef">
         <property name="value">
          <double>1.000000000000000</double>
@@ -41,14 +41,14 @@
         </property>
        </widget>
       </item>
-      <item row="15" column="0">
+      <item row="16" column="0">
        <widget class="QLabel" name="label_ProjectionIter">
         <property name="text">
          <string>interations</string>
         </property>
        </widget>
       </item>
-      <item row="11" column="1">
+      <item row="12" column="1">
        <widget class="QSpinBox" name="spinBox_extension">
         <property name="value">
          <number>2</number>
@@ -62,21 +62,21 @@
         </property>
        </widget>
       </item>
-      <item row="13" column="0">
+      <item row="14" column="0">
        <widget class="QLabel" name="label_twistFraction">
         <property name="text">
          <string>twist fraction</string>
         </property>
        </widget>
       </item>
-      <item row="9" column="0">
+      <item row="10" column="0">
        <widget class="QLabel" name="label_PlaneConstraintsCoef">
         <property name="text">
          <string>Plane Cont. Coef.</string>
         </property>
        </widget>
       </item>
-      <item row="8" column="1">
+      <item row="9" column="1">
        <widget class="QDoubleSpinBox" name="doubleSpinBox_TangentConstraintsCoef">
         <property name="decimals">
          <number>2</number>
@@ -96,28 +96,35 @@
         </property>
        </widget>
       </item>
-      <item row="15" column="1">
+      <item row="16" column="1">
        <widget class="QSpinBox" name="spinBox_ProjectionIter">
         <property name="value">
          <number>20</number>
         </property>
        </widget>
       </item>
-      <item row="6" column="0">
+      <item row="7" column="0">
        <widget class="QLabel" name="label_BendingEnergyCoef">
         <property name="text">
          <string>Beding Energy Coef</string>
         </property>
        </widget>
       </item>
-      <item row="5" column="0">
+      <item row="3" column="0">
+       <widget class="QPushButton" name="pushButton_test">
+        <property name="text">
+         <string>test it</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
        <widget class="QLabel" name="label_PositionConstraintsWeight">
         <property name="text">
          <string>Position Weight</string>
         </property>
        </widget>
       </item>
-      <item row="9" column="1">
+      <item row="10" column="1">
        <widget class="QDoubleSpinBox" name="doubleSpinBox_PlaneConstraintsCoef">
         <property name="decimals">
          <number>1</number>
@@ -130,7 +137,7 @@
         </property>
        </widget>
       </item>
-      <item row="14" column="1">
+      <item row="15" column="1">
        <widget class="QDoubleSpinBox" name="doubleSpinBox_dt">
         <property name="decimals">
          <number>8</number>
@@ -143,7 +150,7 @@
         </property>
        </widget>
       </item>
-      <item row="7" column="0">
+      <item row="8" column="0">
        <widget class="QLabel" name="label">
         <property name="text">
          <string>Twisting Energy Coef.</string>
@@ -157,7 +164,7 @@
         </property>
        </widget>
       </item>
-      <item row="12" column="0">
+      <item row="13" column="0">
        <widget class="QLabel" name="label_twist_times">
         <property name="text">
          <string>twist times</string>
@@ -185,14 +192,14 @@
         </property>
        </widget>
       </item>
-      <item row="11" column="0">
+      <item row="12" column="0">
        <widget class="QLabel" name="label_Extension">
         <property name="text">
          <string>Extension</string>
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
+      <item row="6" column="1">
        <widget class="QDoubleSpinBox" name="doubleSpinBox_PositionConstraintsWeight">
         <property name="decimals">
          <number>5</number>
@@ -208,7 +215,7 @@
         </property>
        </widget>
       </item>
-      <item row="13" column="1">
+      <item row="14" column="1">
        <widget class="QDoubleSpinBox" name="doubleSpinBox_twist_fraction">
         <property name="minimum">
          <double>-0.500000000000000</double>
@@ -221,7 +228,7 @@
         </property>
        </widget>
       </item>
-      <item row="7" column="1">
+      <item row="8" column="1">
        <widget class="QDoubleSpinBox" name="doubleSpinBox_TwistingEnergyCoef">
         <property name="maximum">
          <double>99999.990000000005239</double>
@@ -238,14 +245,14 @@
         </property>
        </widget>
       </item>
-      <item row="10" column="0">
+      <item row="11" column="0">
        <widget class="QLabel" name="label_r">
         <property name="text">
          <string>r</string>
         </property>
        </widget>
       </item>
-      <item row="10" column="1">
+      <item row="11" column="1">
        <widget class="QDoubleSpinBox" name="doubleSpinBox_collisionradius">
         <property name="decimals">
          <number>4</number>
@@ -261,35 +268,28 @@
         </property>
        </widget>
       </item>
-      <item row="3" column="0">
-       <widget class="QPushButton" name="pushButton_test">
-        <property name="text">
-         <string>test it</string>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="0">
+      <item row="9" column="0">
        <widget class="QLabel" name="label_TangentCoef">
         <property name="text">
          <string>Tangent Cont. Coef.</string>
         </property>
        </widget>
       </item>
-      <item row="12" column="1">
+      <item row="13" column="1">
        <widget class="QSpinBox" name="spinBox_twist_times">
         <property name="minimum">
          <number>-99</number>
         </property>
        </widget>
       </item>
-      <item row="16" column="0">
+      <item row="17" column="0">
        <widget class="QLabel" name="label_2">
         <property name="text">
          <string>max steps num</string>
         </property>
        </widget>
       </item>
-      <item row="16" column="1">
+      <item row="17" column="1">
        <widget class="QSpinBox" name="spinBox_max_step">
         <property name="maximum">
          <number>200000</number>
@@ -299,10 +299,17 @@
         </property>
        </widget>
       </item>
-      <item row="4" column="1">
+      <item row="5" column="0">
        <widget class="QPushButton" name="pushButton_projectionThread">
         <property name="text">
          <string>Proj Thread</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QPushButton" name="pushButton_projection2Thread">
+        <property name="text">
+         <string>Proj2 Thread</string>
         </property>
        </widget>
       </item>
@@ -379,7 +386,7 @@
          <string>derivatives check</string>
         </property>
         <property name="checked">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
        </widget>
       </item>
