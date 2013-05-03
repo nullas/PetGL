@@ -159,7 +159,7 @@ void TangentProjection2::GetCrossings()
 
 int TangentProjection2::UpdateCrossings(const Eigen::VectorXd& x)
 {
-    PetCurve::HalfedgeHandle first = first, second;
+    PetCurve::HalfedgeHandle first, second, first_end, second_end;
     int idx = 0;
     int idx_end = crossings_.size();
     double min_dist;
@@ -171,9 +171,13 @@ int TangentProjection2::UpdateCrossings(const Eigen::VectorXd& x)
         second = crossings_[idx].second;
         update = pair<PetCurve::HalfedgeHandle, PetCurve::HalfedgeHandle>(first, second);
         min_dist = LineSegmentsSqDistance(first, second, x);
-        for (first = curve_->prev_halfedge_handle(crossings_[idx].first); first != curve_->next_halfedge_handle(crossings_[idx].first); first = curve_->next_halfedge_handle(first))
+        first_end = curve_->next_halfedge_handle(crossings_[idx].first);
+        first_end = curve_->next_halfedge_handle(first_end);
+        second_end = curve_->next_halfedge_handle(crossings_[idx].second);
+        second_end = curve_->next_halfedge_handle(second_end);
+        for (first = curve_->prev_halfedge_handle(crossings_[idx].first); first != first_end; first = curve_->next_halfedge_handle(first))
         {
-            for (second = curve_->prev_halfedge_handle(crossings_[idx].second); second != curve_->next_halfedge_handle(crossings_[idx].second); second = curve_->next_halfedge_handle(second))
+            for (second = curve_->prev_halfedge_handle(crossings_[idx].second); second != second_end; second = curve_->next_halfedge_handle(second))
             {
                 distance = LineSegmentsSqDistance(first, second, x);
                 if (distance < min_dist)
@@ -327,10 +331,9 @@ int TangentProjection2::Next()
 int TangentProjection2::SymplecticEuler()
 {
     static Eigen::VectorXd v(n_constraints_);
-    static Eigen::SPQR<SpMat> qr;
     ComputeGradients(x_, gradients_);
     ComputeGradientG(x_, grad_g_);
-    qr.compute(grad_g_);
+    Eigen::SPQR<SpMat> qr(grad_g_);
     if (qr.info() != 0)
         return -1;
     v = qr.solve(gradients_);
@@ -498,7 +501,7 @@ int TangentProjection2::ComputeEnergy(const Eigen::VectorXd& x, double& energy)
 
 int TangentProjection2::ComputeG(const Eigen::VectorXd& x, Eigen::VectorXd& g)
 {
-    Eigen::Vector3d e, f;
+    Eigen::Vector3d e;
     unsigned int i = 0;
     for (; i < halfedges_.size(); ++i)
     {
