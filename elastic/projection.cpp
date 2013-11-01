@@ -15,7 +15,7 @@ TangentProjection::TangentProjection(PetCurve *curve, const Constraints& _cons, 
 {
     curve_ = curve;
     constraints_ = _cons;
-    for (int i = 0; i < constraints_.PlaneConstraints.size(); ++i)
+    for (unsigned int i = 0; i < constraints_.PlaneConstraints.size(); ++i)
     {
         constraints_.PlaneConstraintsInfo[i].first.normalize();
     }
@@ -627,7 +627,7 @@ int TangentProjection::ComputeGradients(const Eigen::VectorXd& x, Eigen::VectorX
     Eigen::Vector3d e, f;
     Eigen::Vector3d G;
     int i;
-    double l, l_e, l_f, d, coef;
+    double l, l_e, l_f, coef;
     for (; c_it != c_end; ++c_it)
     {
         for (ch_it = curve_->fh_iter(c_it.handle()); ch_it; ++ch_it)
@@ -642,7 +642,6 @@ int TangentProjection::ComputeGradients(const Eigen::VectorXd& x, Eigen::VectorX
             l_e = edge_length_mapping_[h_e];
             l_f = edge_length_mapping_[h_f];
             l = l_e + l_f;
-            d = l_e * l_f;
             l /= 2;
             coef = 2*parameter_.BendingEnergyCoef / l;
             i = point_index(v0);

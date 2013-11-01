@@ -47,8 +47,6 @@ void Viewer::init()
     glEnable(GL_NORMALIZE);
     glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
     cout << "OpenGL version: " << glGetString(GL_VERSION) <<endl;
-    glPrimitiveRestartIndex(UINT_MAX);
-    glEnable(GL_PRIMITIVE_RESTART);
     glEnableClientState(GL_VERTEX_ARRAY);
     glEnableClientState(GL_COLOR_ARRAY);
     glEnableClientState(GL_NORMAL_ARRAY);

@@ -46,7 +46,7 @@ LIBS += -lspqr -lcholmod -lsuitesparseconfig -lcamd -lbtf -lcolamd -lumfpack -lk
 
 DESTDIR = ..
 
-QMAKE_RPATH = .
+QMAKE_LFLAGS_RPATH = .
 
 unix:!symbian {
     target.path = ../lib/plugins

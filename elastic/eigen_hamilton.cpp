@@ -585,7 +585,7 @@ int HamiltonProjection::ComputeGradients(const Eigen::VectorXd& x, Eigen::Vector
     Eigen::Vector3d e, f;
     Eigen::Vector3d G;
     int i;
-    double l, l_e, l_f, d, coef;
+    double l, l_e, l_f, coef;
     for (; c_it != c_end; ++c_it)
     {
         for (ch_it = curve_->fh_iter(c_it.handle()); ch_it; ++ch_it)
@@ -600,7 +600,6 @@ int HamiltonProjection::ComputeGradients(const Eigen::VectorXd& x, Eigen::Vector
             l_e = edge_length_mapping_[h_e];
             l_f = edge_length_mapping_[h_f];
             l = l_e + l_f;
-            d = l_e * l_f;
             l /= 2;
 //            coef = d + e.dot(f);
 //            coef *= coef;

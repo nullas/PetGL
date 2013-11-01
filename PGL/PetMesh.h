@@ -85,16 +85,13 @@ public:
     virtual void drawPickVertices();
 
     bool VBOcreated;
-    int iSizeofidxFaces;
+    int num_of_triangles_;
     float PointSize;
 
     static const PetMesh::Color FaceColor, VertexColor, EdgeColor;
     static const PetMesh::Color SelectFaceColor, SelectVertexColor, SelectEdgeColor;
-
-
     void setVerticesSelected(const std::vector<unsigned int>&);
     void setVertexSelected(const unsigned int);
-
     void setFacesSelected(const std::vector<unsigned int>&);
     void setFaceSelected(const unsigned int);
 

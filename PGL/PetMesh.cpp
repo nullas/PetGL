@@ -72,10 +72,7 @@ void PetMesh::init(bool isCurve)
     PetMesh::Color f_color(FaceColor);
     PetMesh::Color e_color(EdgeColor);
     PetMesh::Color v_color(VertexColor);
-
-
-
-    iSizeofidxFaces = 0;
+    num_of_triangles_ = 0;
     if (!isCurve)
         {
         for (f_it = this->faces_begin(); f_it != f_end; ++f_it)
@@ -85,10 +82,10 @@ void PetMesh::init(bool isCurve)
             this->property(selectedFace, *f_it) = false;
             for (fv_it = this->fv_iter(*f_it); fv_it; ++fv_it)
             {
-                iSizeofidxFaces++;
+                num_of_triangles_++;
             }
+            num_of_triangles_ -= 2;
         }
-
     }
 
     for (e_it = this->edges_begin(); e_it != e_end; ++e_it)
@@ -147,13 +144,19 @@ bool PetMesh::save(QString filename)
 bool PetMesh::dumpToCSV(QString filename)
 {
     ofstream of;
-    of.open(filename.toStdString().data(), ios_base::out);
-    if (!of.is_open()) return false;
+    QFileInfo qr(filename);
+    QString base = qr.baseName();
+    QString suf = qr.suffix();
     PetMesh::FaceIter f_it(this->faces_begin()), f_end(this->faces_end());
     PetMesh::FaceHalfedgeIter h_it;
     PetMesh::Point p;
+    int i = 0;
+    QString name;
     for (; f_it != f_end; ++f_it)
     {
+        name = qr.absolutePath() + '/' + base+ QString::number(i) + '.' +suf;
+        of.open(name.toStdString().data(), ios_base::out);
+        if (!of.is_open()) return false;
         h_it = this->fh_iter(f_it);
         p = this->point(this->from_vertex_handle(h_it.handle()));
         of << p[0] << ',' << p[1] << ',' << p[2] << std::endl;
@@ -163,6 +166,8 @@ bool PetMesh::dumpToCSV(QString filename)
             of << p[0] << ',' << p[1] << ',' << p[2] << std::endl;
         }
         of << p[0] << ',' << p[1] << ',' << p[2] << std::endl;
+        of.close();
+        ++i;
     }
     return true;
 }
@@ -183,49 +188,72 @@ void PetMesh::updateVBO()
     PetMesh::Point pos;
     PetMesh::Normal normal;
     PetMesh::Color tmpcolor;
-    positions = new float[3 * sizeof(float) * iSizeofidxFaces];
-    normals = new float[3 * sizeof(float) * iSizeofidxFaces];
-    idxFaces = new unsigned int[iSizeofidxFaces + n_faces()];
-    colorFaces = new float[4 * sizeof(float) * iSizeofidxFaces];
-
-    unsigned int tmpidxface = 0,tmpidx = 0;
+    positions = new float[3 * sizeof(float) * 3 * num_of_triangles_];
+    normals = new float[3 * sizeof(float) * 3 * num_of_triangles_];
+    idxFaces = new unsigned int[3 * num_of_triangles_];
+    colorFaces = new float[4 * sizeof(float) * 3 * num_of_triangles_];
+    unsigned int tmpidx = 0;
     for (f_it = this->faces_begin(); f_it != f_end; ++f_it)
     {
         tmpcolor = this->color(f_it);
         normal = this->normal(f_it);
-        for (fv_it = this->fv_iter(f_it); fv_it; ++fv_it)
+        fv_it = this->fv_iter(f_it);
+        PetMesh::Point vertex1 = this->point(fv_it);
+        ++fv_it;
+        PetMesh::Point vertex2 = this->point(fv_it);
+        ++fv_it;
+        for (; fv_it; ++fv_it)
         {
-            idxFaces[tmpidxface] = tmpidx;
-            pos = this->point(fv_it);
-            normals[3 * tmpidx] = normal[0];
-            normals[3 * tmpidx + 1] = normal[1];
-            normals[3 * tmpidx + 2] = normal[2];
-            colorFaces[4 * tmpidx] = tmpcolor[0];
-            colorFaces[4 * tmpidx + 1] = tmpcolor[1];
-            colorFaces[4 * tmpidx + 2] = tmpcolor[2];
-            colorFaces[4 * tmpidx + 3] = tmpcolor[3];
-            positions[3 * tmpidx] = (float)pos[0];
-            positions[3 * tmpidx + 1] = (float)pos[1];
-            positions[3 * tmpidx + 2] = (float)pos[2];
-
-            tmpidxface++;
-            tmpidx++;
+            idxFaces[3 * tmpidx] = 3 * tmpidx;
+            idxFaces[3 * tmpidx + 1] = 3 * tmpidx + 1;
+            idxFaces[3 * tmpidx + 2] = 3 * tmpidx + 2;
+            PetMesh::Point vertex3 = this->point(fv_it);
+            normals[9 * tmpidx] = normal[0];
+            normals[9 * tmpidx + 1] = normal[1];
+            normals[9 * tmpidx + 2] = normal[2];
+            normals[9 * tmpidx + 3] = normal[0];
+            normals[9 * tmpidx + 4] = normal[1];
+            normals[9 * tmpidx + 5] = normal[2];
+            normals[9 * tmpidx + 6] = normal[0];
+            normals[9 * tmpidx + 7] = normal[1];
+            normals[9 * tmpidx + 8] = normal[2];
+            colorFaces[12 * tmpidx] = tmpcolor[0];
+            colorFaces[12 * tmpidx + 1] = tmpcolor[1];
+            colorFaces[12 * tmpidx + 2] = tmpcolor[2];
+            colorFaces[12 * tmpidx + 3] = tmpcolor[3];
+            colorFaces[12 * tmpidx + 4] = tmpcolor[0];
+            colorFaces[12 * tmpidx + 5] = tmpcolor[1];
+            colorFaces[12 * tmpidx + 6] = tmpcolor[2];
+            colorFaces[12 * tmpidx + 7] = tmpcolor[3];
+            colorFaces[12 * tmpidx + 8] = tmpcolor[0];
+            colorFaces[12 * tmpidx + 9] = tmpcolor[1];
+            colorFaces[12 * tmpidx + 10] = tmpcolor[2];
+            colorFaces[12 * tmpidx + 11] = tmpcolor[3];
+            positions[9 * tmpidx] = (float)vertex1[0];
+            positions[9 * tmpidx + 1] = (float)vertex1[1];
+            positions[9 * tmpidx + 2] = (float)vertex1[2];
+            positions[9 * tmpidx + 3] = (float)vertex2[0];
+            positions[9 * tmpidx + 4] = (float)vertex2[1];
+            positions[9 * tmpidx + 5] = (float)vertex2[2];
+            positions[9 * tmpidx + 6] = (float)vertex3[0];
+            positions[9 * tmpidx + 7] = (float)vertex3[1];
+            positions[9 * tmpidx + 8] = (float)vertex3[2];
+            vertex2 = vertex3;
+            ++tmpidx;
         }
-        idxFaces[tmpidxface] = UINT_MAX;
-        tmpidxface++;
     }
 
     glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[0]);
-    glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(float) * iSizeofidxFaces, positions, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(float) * 3 * num_of_triangles_, positions, GL_DYNAMIC_DRAW);
     delete [] positions;
     glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[1]);
-    glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(float) * iSizeofidxFaces, normals, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(float) * 3 * num_of_triangles_, normals, GL_DYNAMIC_DRAW);
     delete [] normals;
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferObjs[2]);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, (iSizeofidxFaces + n_faces()) * sizeof(unsigned int), idxFaces, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * num_of_triangles_ * sizeof(unsigned int), idxFaces, GL_STATIC_DRAW);
     delete [] idxFaces;
     glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[3]);
-    glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(float) * iSizeofidxFaces, colorFaces, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(float) * 3 * num_of_triangles_, colorFaces, GL_DYNAMIC_DRAW);
     delete [] colorFaces;
 
     colorEdges = new float[8 * sizeof(float) * n_edges()];
@@ -308,7 +336,7 @@ void PetMesh::render()
         glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[3]);
         glColorPointer(4, GL_FLOAT, 0, 0);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferObjs[2]);
-        glDrawElements(GL_TRIANGLE_FAN, iSizeofidxFaces + n_faces(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, 3 * num_of_triangles_, GL_UNSIGNED_INT, 0);
         glPopAttrib();
     }
 
@@ -351,7 +379,7 @@ void PetMesh::drawPickVertices()
     glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[0]);
     glVertexPointer(3, GL_FLOAT, 0, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferObjs[2]);
-    glDrawElements(GL_TRIANGLE_FAN, iSizeofidxFaces + n_faces(), GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, num_of_triangles_, GL_UNSIGNED_INT, 0);
     glEnableClientState(GL_COLOR_ARRAY);
     glEnableClientState(GL_NORMAL_ARRAY);
     unsigned int n_vertice = n_vertices();
@@ -400,7 +428,7 @@ void PetMesh::drawPickEdges()
     glBindBuffer(GL_ARRAY_BUFFER, bufferObjs[0]);
     glVertexPointer(3, GL_FLOAT, 0, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferObjs[2]);
-    glDrawElements(GL_TRIANGLE_FAN, iSizeofidxFaces + n_faces(), GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, num_of_triangles_, GL_UNSIGNED_INT, 0);
     glEnableClientState(GL_COLOR_ARRAY);
     glEnableClientState(GL_NORMAL_ARRAY);
     unsigned int n_edges = v_n_edges();

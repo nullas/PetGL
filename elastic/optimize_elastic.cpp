@@ -2039,8 +2039,6 @@ double OptimizeElastic::ComputeTotalLength()
 bool OptimizeElastic::ComputeWritheNumber(const double *x)
 {
     double writhe_fraction = ComputeWritheFraction(x);
-    double another_writhe_fraction = ComputeWritheFractionByArea(x);
-    double diff_two_way = writhe_fraction - another_writhe_fraction;
     double diff = numeric_limits<double>::max();
     int offset, temp_writhe;
     for (offset = -1; offset <= 1; ++offset)
